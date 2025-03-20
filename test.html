@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Camera Test</title>
+  </head>
+  <body>
+    <video id="testVideo" autoplay muted playsinline style="width:300px; height:200px;"></video>
+    <script>
+      async function startTestVideo() {
+        try {
+          const video = document.getElementById('testVideo');
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          video.onloadedmetadata = () => {
+            video.play();
+          };
+        } catch (err) {
+          console.error("Camera error:", err);
+        }
+      }
+      startTestVideo();
+    </script>
+  </body>
+</html>
