@@ -1,17 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <title>Emotion Interaction</title>
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css" />
+    <link rel="stylesheet" href="/static/css/style.css">
   </head>
   <body>
+    <!-- Main interface container -->
     <div id="main-container">
-      <!-- Live feed (or snapshot with overlay) -->
+      <!-- Live video feed -->
       <img id="videoFeed" src="/video_feed" alt="Live Video Feed">
       
       <!-- Snapshot container (shown when detection is complete) -->
@@ -21,10 +18,10 @@
       </div>
       
       <!-- Canvas for animated face -->
-      <canvas id="faceCanvas" width="400" height="400"></canvas>
+      <canvas id="faceCanvas" width="800" height="600"></canvas>
     </div>
     
-    <!-- Video container placed outside main-container -->
+    <!-- Video container (placed outside main-container) -->
     <div id="video-container">
       <video id="interactionVideo" controls autoplay></video>
     </div>

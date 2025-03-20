@@ -18,9 +18,9 @@ last_emotion = None
 emotion_start_time = None
 
 emotion_buffer = []  # list of tuples (timestamp, emotion)
-buffer_window = 7    # time window in seconds
+buffer_window = 5    # time window in seconds
 threshold_ratio = 0.7  # require 70% or more of detections to be the same emotion
-min_count = 30  
+min_count = 10  
 
 # --- Load face detector and TFLite emotion model ---
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
@@ -143,7 +143,7 @@ def gen_video():
             frame_to_send = current_frame
         if frame_to_send is None:
             try:
-                with open("static/test.jpg", "rb") as f:
+                with open("static/test.png", "rb") as f:
                     fallback_frame = f.read()
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + fallback_frame + b'\r\n')
