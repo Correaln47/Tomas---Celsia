@@ -5,21 +5,21 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 factory = PiGPIOFactory()
 app = Flask(__name__)
 
+# Use hardware PWM pins for stable PWM signal.
 # Motor A (left)
-FWD_A = 17   # PWM: controls speed (duty cycle) for Motor A
-REV_A = 27   # Digital: sets direction flag (reverse) for Motor A
+FWD_A = 18   # Hardware PWM pin for motor A speed control
+REV_A = 27   # Digital: sets motor A direction (reverse flag)
 
 # Motor B (right)
-FWD_B = 10   # PWM: controls speed (duty cycle) for Motor B
-REV_B = 9    # Digital: sets direction flag (reverse) for Motor B
+FWD_B = 19   # Hardware PWM pin for motor B speed control
+REV_B = 9    # Digital: sets motor B direction (reverse flag)
 
 motorA_fwd = PWMLED(FWD_A, pin_factory=factory)
 motorA_rev = LED(REV_A, pin_factory=factory)
 motorB_fwd = PWMLED(FWD_B, pin_factory=factory)
 motorB_rev = LED(REV_B, pin_factory=factory)
 
-# Configurable maximum throttle (0 to 1).
-# A PWM value of 1.0 corresponds to a 100% duty cycle (i.e. 3.3V output).
+# Configurable maximum throttle (e.g., 0.3 means max PWM duty cycle of 30%)
 MAX_THROTTLE = 0.3
 
 def stop_all():
@@ -35,45 +35,45 @@ def index():
 @app.route("/drive", methods=["POST"])
 def drive():
     data = request.json
-    # Expecting joystick values (assumed in the range [-1, 1])
+    # Get joystick values (expected range: [-1, 1])
     x = float(data.get("x", 0))
     y = float(data.get("y", 0))
     
-    # Differential mixing: standard equation.
-    # left = y + x, right = y - x.
+    # Differential mixing:
+    # Pushing joystick up (y=1) yields both motors = 1 (max forward).
+    # Pushing down (y=-1) yields both motors = -1 (max reverse).
+    # Pushing right (x positive) makes one motor forward and the other reverse.
     left  = y + x
     right = y - x
 
-    # Clamp the values so they stay within [-1, 1].
+    # Clamp values to [-1, 1]
     left  = max(min(left, 1), -1)
     right = max(min(right, 1), -1)
     
-    # Debug: print the joystick input and computed differential values.
-    print(f"Joystick input: x={x:.2f}, y={y:.2f}")
-    print(f"Computed values: left={left:.2f}, right={right:.2f}")
+    # Debug prints for checking values:
+    print(f"Joystick: x={x:.2f}, y={y:.2f}")
+    print(f"Differential values: left={left:.2f}, right={right:.2f}")
     
-    # Stop previous outputs before applying new commands.
+    # Stop previous outputs
     stop_all()
     
-    # For Motor A (left):
+    # Motor A (Left):
     if left >= 0:
-        # Forward mode: reverse flag off, PWM = left * MAX_THROTTLE.
-        motorA_rev.off()
+        motorA_rev.off()  # forward mode
         motorA_fwd.value = left * MAX_THROTTLE
         print(f"Motor A: FORWARD, PWM = {left * MAX_THROTTLE:.2f}")
     else:
-        # Reverse mode: reverse flag on, PWM = |left| * MAX_THROTTLE.
-        motorA_rev.on()
+        motorA_rev.on()   # reverse mode
         motorA_fwd.value = abs(left) * MAX_THROTTLE
         print(f"Motor A: REVERSE, PWM = {abs(left) * MAX_THROTTLE:.2f}")
     
-    # For Motor B (right):
+    # Motor B (Right):
     if right >= 0:
-        motorB_rev.off()
+        motorB_rev.off()  # forward mode
         motorB_fwd.value = right * MAX_THROTTLE
         print(f"Motor B: FORWARD, PWM = {right * MAX_THROTTLE:.2f}")
     else:
-        motorB_rev.on()
+        motorB_rev.on()   # reverse mode
         motorB_fwd.value = abs(right) * MAX_THROTTLE
         print(f"Motor B: REVERSE, PWM = {abs(right) * MAX_THROTTLE:.2f}")
     
