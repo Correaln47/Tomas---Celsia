@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RPi Joystick</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
+        #joystick-zone { width: 300px; height: 300px; margin: 30px; background: #eee; border-radius: 50%; }
+    </style>
+</head>
+<body>
+    <h2>Joystick Control</h2>
+    <div id="joystick-zone"></div>
+    <button onclick="stop()">STOP</button>
+
+    <script src="/static/nipplejs.min.js"></script>
+
+    <script>
+        const joystick = nipplejs.create({
+            zone: document.getElementById('joystick-zone'),
+            mode: 'static',
+            position: { left: '50%', top: '50%' },
+            color: 'black'
+        });
+
+        let sendInterval = null;
+
+        joystick.on('start', () => {
+            sendInterval = setInterval(() => {
+                const pos = joystick[0].frontPosition;
+                const zone = document.getElementById('joystick-zone');
+                const rect = zone.getBoundingClientRect();
+                let x = (pos.x - rect.width / 2) / (rect.width / 2);
+                let y = (rect.height / 2 - pos.y) / (rect.height / 2);
+                fetch("/drive", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ x, y })
+                });
+            }, 100);
+        });
+
+        joystick.on('end', () => {
+            clearInterval(sendInterval);
+            fetch("/stop", { method: "POST" });
+        });
+
+        function stop() {
+            fetch("/stop", { method: "POST" });
+        }
+    </script>
+</body>
+</html>
