@@ -13,8 +13,7 @@
     <div id="joystick-zone"></div>
     <button onclick="stop()">STOP</button>
 
-    <script src="/static/nipplejs.min.js"></script>
-
+    <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
     <script>
         const joystick = nipplejs.create({
             zone: document.getElementById('joystick-zone'),
@@ -30,8 +29,10 @@
                 const pos = joystick[0].frontPosition;
                 const zone = document.getElementById('joystick-zone');
                 const rect = zone.getBoundingClientRect();
-                let x = (pos.x - rect.width / 2) / (rect.width / 2);
-                let y = (rect.height / 2 - pos.y) / (rect.height / 2);
+
+                const x = ((pos?.x || 0) - rect.width / 2) / (rect.width / 2);
+                const y = (rect.height / 2 - (pos?.y || 0)) / (rect.height / 2);
+
                 fetch("/drive", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
