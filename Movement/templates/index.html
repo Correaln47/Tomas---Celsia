@@ -1,54 +1,74 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>RPi Joystick</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; }
-        #joystick-zone { width: 300px; height: 300px; margin: 30px; background: #eee; border-radius: 50%; }
-    </style>
+  <title>RPi Joystick</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    /* Ensure the zone is a circle and positioned relative */
+    #joystick-zone {
+      width: 300px;
+      height: 300px;
+      margin: 30px;
+      background: #eee;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+    }
+    /* Optional: center any text within the zone */
+    #joystick-zone .nipple {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
 </head>
 <body>
-    <h2>Joystick Control</h2>
-    <div id="joystick-zone"></div>
-    <button onclick="stop()">STOP</button>
+  <h2>Joystick Control</h2>
+  <div id="joystick-zone"></div>
+  <button onclick="stop()">STOP</button>
 
-    <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
-    <script>
-        const joystick = nipplejs.create({
-            zone: document.getElementById('joystick-zone'),
-            mode: 'static',
-            position: { left: '50%', top: '50%' },
-            color: 'black'
+  <!-- Use a locally hosted nipplejs or a CDN if offline isn't an issue -->
+  <script src="/static/nipplejs.min.js"></script>
+  <script>
+    // Create the joystick with a static position.
+    var joystick = nipplejs.create({
+      zone: document.getElementById('joystick-zone'),
+      mode: 'static',
+      position: { left: '50%', top: '50%' },
+      color: 'black'
+    });
+
+    // Use the 'move' event, which provides a normalized vector.
+    joystick.on('move', function(evt, data) {
+      if (data && data.vector) {
+        // data.vector.x and data.vector.y are already normalized to about [-1, 1]
+        let x = data.vector.x;
+        let y = data.vector.y;
+        // If you find the y axis reversed (or any offset), you can invert it:
+        // y = -y;
+        fetch("/drive", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ x: x.toFixed(2), y: y.toFixed(2) })
         });
+      }
+    });
 
-        let sendInterval = null;
+    // When the joystick is released, send a stop command.
+    joystick.on('end', function() {
+      fetch("/stop", { method: "POST" });
+    });
 
-        joystick.on('start', () => {
-            sendInterval = setInterval(() => {
-                const pos = joystick[0].frontPosition;
-                const zone = document.getElementById('joystick-zone');
-                const rect = zone.getBoundingClientRect();
-
-                const x = ((pos?.x || 0) - rect.width / 2) / (rect.width / 2);
-                const y = (rect.height / 2 - (pos?.y || 0)) / (rect.height / 2);
-
-                fetch("/drive", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ x, y })
-                });
-            }, 100);
-        });
-
-        joystick.on('end', () => {
-            clearInterval(sendInterval);
-            fetch("/stop", { method: "POST" });
-        });
-
-        function stop() {
-            fetch("/stop", { method: "POST" });
-        }
-    </script>
+    function stop() {
+      fetch("/stop", { method: "POST" });
+    }
+  </script>
 </body>
 </html>
