@@ -6,17 +6,18 @@ factory = PiGPIOFactory()
 app = Flask(__name__)
 
 # Motor A (left)
-DIR1 = 17  # Forward (PWM)
-DIR2 = 27  # Reverse (ON/OFF)
+FWD_A = 17   # PWM: sets speed
+REV_A = 27   # Digital: sets reverse flag
 
 # Motor B (right)
-DIR3 = 10  # Forward (PWM)
-DIR4 = 9   # Reverse (ON/OFF)
+FWD_B = 10   # PWM: sets speed
+REV_B = 9    # Digital: sets reverse flag
 
-motorA_fwd = PWMLED(DIR1, pin_factory=factory)
-motorA_rev = LED(DIR2, pin_factory=factory)
-motorB_fwd = PWMLED(DIR3, pin_factory=factory)
-motorB_rev = LED(DIR4, pin_factory=factory)
+# Create our motor objects:
+motorA_fwd = PWMLED(FWD_A, pin_factory=factory)
+motorA_rev = LED(REV_A, pin_factory=factory)
+motorB_fwd = PWMLED(FWD_B, pin_factory=factory)
+motorB_rev = LED(REV_B, pin_factory=factory)
 
 def stop_all():
     motorA_fwd.value = 0
@@ -34,33 +35,39 @@ def drive():
     x = float(data.get("x", 0))
     y = float(data.get("y", 0))
 
-    # Differential drive
-    left = y + x
+    # Compute differential values
+    left  = y + x
     right = y - x
 
-    # Normalize
+    # Normalize values so that maximum magnitude is 1
     max_val = max(abs(left), abs(right), 1)
-    left /= max_val
+    left  /= max_val
     right /= max_val
 
-    # Stop everything before new motion
+    # Stop previous commands
     stop_all()
 
-    # Motor A (left)
-    if left > 0:
+    # Motor A (Left)
+    if left >= 0:
+        # Forward: set reverse flag off, PWM proportional to speed
+        motorA_rev.off()
         motorA_fwd.value = abs(left)
-        print(f"Left motor FORWARD at {abs(left):.2f}")
-    elif left < 0:
+        print(f"Motor A: FORWARD with PWM = {abs(left):.2f}")
+    else:
+        # Reverse: set reverse flag on, PWM proportional to speed
         motorA_rev.on()
-        print(f"Left motor REVERSE")
+        motorA_fwd.value = abs(left)
+        print(f"Motor A: REVERSE with PWM = {abs(left):.2f}")
 
-    # Motor B (right)
-    if right > 0:
+    # Motor B (Right)
+    if right >= 0:
+        motorB_rev.off()
         motorB_fwd.value = abs(right)
-        print(f"Right motor FORWARD at {abs(right):.2f}")
-    elif right < 0:
+        print(f"Motor B: FORWARD with PWM = {abs(right):.2f}")
+    else:
         motorB_rev.on()
-        print(f"Right motor REVERSE")
+        motorB_fwd.value = abs(right)
+        print(f"Motor B: REVERSE with PWM = {abs(right):.2f}")
 
     return jsonify({
         "left": left,
