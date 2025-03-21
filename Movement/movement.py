@@ -6,14 +6,14 @@ factory = PiGPIOFactory()
 app = Flask(__name__)
 
 # Motor A (left)
-FWD_A = 17   # PWM: sets speed
-REV_A = 27   # Digital: sets reverse flag
+FWD_A = 17   # PWM: controls speed for motor A
+REV_A = 27   # Digital: direction flag for motor A
 
 # Motor B (right)
-FWD_B = 10   # PWM: sets speed
-REV_B = 9    # Digital: sets reverse flag
+FWD_B = 10   # PWM: controls speed for motor B
+REV_B = 9    # Digital: direction flag for motor B
 
-# Create our motor objects:
+# Create motor objects:
 motorA_fwd = PWMLED(FWD_A, pin_factory=factory)
 motorA_rev = LED(REV_A, pin_factory=factory)
 motorB_fwd = PWMLED(FWD_B, pin_factory=factory)
@@ -32,40 +32,43 @@ def index():
 @app.route("/drive", methods=["POST"])
 def drive():
     data = request.json
+    # Get the joystick values from the web interface:
     x = float(data.get("x", 0))
     y = float(data.get("y", 0))
-
-    # Compute differential values
+    
+    # Compute differential drive values:
     left  = y + x
     right = y - x
 
-    # Normalize values so that maximum magnitude is 1
+    # Normalize values so that the maximum absolute value is 1
     max_val = max(abs(left), abs(right), 1)
     left  /= max_val
     right /= max_val
 
-    # Stop previous commands
+    # Debug prints:
+    print(f"Received joystick values: x={x:.2f}, y={y:.2f}")
+    print(f"Computed differential values: left={left:.2f}, right={right:.2f}")
+
+    # Stop any previous commands:
     stop_all()
 
-    # Motor A (Left)
+    # Set Motor A (Left)
     if left >= 0:
-        # Forward: set reverse flag off, PWM proportional to speed
-        motorA_rev.off()
+        motorA_rev.off()  # forward mode
         motorA_fwd.value = abs(left)
         print(f"Motor A: FORWARD with PWM = {abs(left):.2f}")
     else:
-        # Reverse: set reverse flag on, PWM proportional to speed
-        motorA_rev.on()
+        motorA_rev.on()  # reverse flag active
         motorA_fwd.value = abs(left)
         print(f"Motor A: REVERSE with PWM = {abs(left):.2f}")
 
-    # Motor B (Right)
+    # Set Motor B (Right)
     if right >= 0:
-        motorB_rev.off()
+        motorB_rev.off()  # forward mode
         motorB_fwd.value = abs(right)
         print(f"Motor B: FORWARD with PWM = {abs(right):.2f}")
     else:
-        motorB_rev.on()
+        motorB_rev.on()  # reverse flag active
         motorB_fwd.value = abs(right)
         print(f"Motor B: REVERSE with PWM = {abs(right):.2f}")
 
