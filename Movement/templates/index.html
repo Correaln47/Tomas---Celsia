@@ -9,54 +9,61 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background: #f7f7f7;
     }
-    /* Ensure the zone is a circle and positioned relative */
+    /* Larger joystick zone for finer control */
     #joystick-zone {
-      width: 300px;
-      height: 300px;
-      margin: 30px;
+      width: 500px;
+      height: 500px;
       background: #eee;
       border-radius: 50%;
       position: relative;
-      overflow: hidden;
+      margin-bottom: 20px;
     }
-    /* Optional: center any text within the zone */
-    #joystick-zone .nipple {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+    /* Container for throttle slider */
+    #throttle-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
   <h2>Joystick Control</h2>
   <div id="joystick-zone"></div>
+  <div id="throttle-container">
+    <label for="throttleSlider">Max Throttle:</label>
+    <input type="range" id="throttleSlider" min="0" max="1" step="0.01" value="1">
+  </div>
   <button onclick="stop()">STOP</button>
 
-  <!-- Use a locally hosted nipplejs or a CDN if offline isn't an issue -->
-  <script src="/static/nipplejs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
   <script>
-    // Create the joystick with a static position.
-    var joystick = nipplejs.create({
+    // Configure the joystick with a larger size and zone.
+    var options = {
       zone: document.getElementById('joystick-zone'),
       mode: 'static',
       position: { left: '50%', top: '50%' },
-      color: 'black'
-    });
+      color: 'black',
+      size: 400 // Diameter of the joystick control (adjust as needed)
+    };
+    var joystick = nipplejs.create(options);
 
-    // Use the 'move' event, which provides a normalized vector.
+    // Use the move event to send normalized x,y values
     joystick.on('move', function(evt, data) {
       if (data && data.vector) {
-        // data.vector.x and data.vector.y are already normalized to about [-1, 1]
         let x = data.vector.x;
         let y = data.vector.y;
-        // If you find the y axis reversed (or any offset), you can invert it:
-        // y = -y;
+        // Optionally, invert y-axis if necessary: y = -y;
+        let throttle = parseFloat(document.getElementById("throttleSlider").value);
         fetch("/drive", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ x: x.toFixed(2), y: y.toFixed(2) })
+          body: JSON.stringify({ x: x.toFixed(2), y: y.toFixed(2), throttle: throttle.toFixed(2) })
         });
       }
     });
