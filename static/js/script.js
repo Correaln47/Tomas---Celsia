@@ -17,64 +17,64 @@ document.addEventListener("DOMContentLoaded", function() {
   // --- Face Animation (draw a simple animated face) ---
   // Draw the face with dynamic eyes and a semi-oval mouth.
   function drawFace(emotion, mouthState = "neutral", amplitude = 0) {
-    // Get current time (in seconds) for floating effect.
+    // Get the canvas width and height.
+    const cw = faceCanvas.width;
+    const ch = faceCanvas.height;
+    
+    // Floating offset for a gentle vertical oscillation (face floating in water).
     const t = Date.now() / 1000;
-    // Floating offset oscillates smoothly (e.g. ±10 pixels).
-    const floatOffset = 20 * Math.sin(t * 0.6);
+    const floatOffset = 10 * Math.sin(t * 0.5);
   
     // Clear the canvas.
-    ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
+    ctx.clearRect(0, 0, cw, ch);
   
-    // --- Draw Eyes as Rectangles ---
-    // Base positions for the eyes.
-    let leftEyeX = 150, leftEyeY = 150 + floatOffset + 5;
-    let rightEyeX = 240, rightEyeY = 150 + floatOffset;
-    // Base dimensions for the rectangular eyes.
-    let baseEyeWidth =25;       // fixed width
-    let baseEyeHeight = 50;      // vertical dimension
-    // When talking, adjust only the vertical dimension.
-    const eyeHeightChangeFactor = 20; // maximum change in pixels.
+    // --- Draw Eyes as Rectangles (Relative Coordinates) ---
+    // Positions relative to canvas dimensions.
+    const leftEyeX = cw * 0.2;
+    const leftEyeY = ch * 0.3 + floatOffset;
+    const rightEyeX = cw * 0.6;
+    const rightEyeY = ch * 0.3 + floatOffset;
+    // Base dimensions: fixed width, and vertical height proportional to the canvas.
+    const baseEyeWidth = cw * 0.05;  // 5% of canvas width
+    const baseEyeHeight = ch * 0.15;   // 15% of canvas height
+    // Change only vertical dimension when talking.
+    const eyeHeightChangeFactor = baseEyeHeight * 0.2; // up to 20% change
     let adjustedEyeHeight = baseEyeHeight;
     if (mouthState === "talking") {
       adjustedEyeHeight = baseEyeHeight - (amplitude * eyeHeightChangeFactor);
-      if (adjustedEyeHeight < 20) {  // ensure a minimum height
-        adjustedEyeHeight = 20;
+      // Ensure the eye height doesn't go below a minimum value (50% of base).
+      if (adjustedEyeHeight < baseEyeHeight * 0.5) {
+        adjustedEyeHeight = baseEyeHeight * 0.5;
       }
     }
     ctx.fillStyle = "black";
     ctx.fillRect(leftEyeX, leftEyeY, baseEyeWidth, adjustedEyeHeight);
     ctx.fillRect(rightEyeX, rightEyeY, baseEyeWidth, adjustedEyeHeight);
   
-    // --- Draw Mouth as a Semi-Oval ---
-    // Base mouth center.
-    const mouthCenterX = 200, mouthCenterY = 250 + floatOffset;
-    // Base horizontal radius (half-width) for a neutral mouth.
-    const baseMouthRadiusX = 35;
-    // Base vertical radius for a neutral expression.
-    const baseMouthRadiusY = 2;
-    // When talking, adjust the vertical radius to simulate opening.
-    const mouthOpenFactorY = 40; // maximum vertical increase.
+    // --- Draw Mouth as a Semi-Oval (Relative Coordinates) ---
+    // Define the center of the mouth relative to the canvas.
+    const mouthCenterX = cw * 0.5;
+    const mouthCenterY = ch * 0.65 + floatOffset;
+    // Base horizontal radius: 12.5% of canvas width; base vertical radius: 3% of canvas height.
+    const baseMouthRadiusX = cw * 0.125;
+    const baseMouthRadiusY = ch * 0.03;
+    // Maximum adjustments based on amplitude.
+    const mouthOpenFactorY = ch * 0.1; // up to 10% of canvas height extra vertically.
+    const mouthOpenFactorX = cw * 0.05; // up to 5% of canvas width extra horizontally.
     let adjustedMouthRadiusY = baseMouthRadiusY;
-    // Also, adjust the horizontal radius based on amplitude.
-    const mouthOpenFactorX = 30; // maximum horizontal increase.
     let adjustedMouthRadiusX = baseMouthRadiusX;
-    
     if (mouthState === "talking") {
       adjustedMouthRadiusY = baseMouthRadiusY + amplitude * mouthOpenFactorY;
       adjustedMouthRadiusX = baseMouthRadiusX + amplitude * mouthOpenFactorX;
-    } else if (mouthState === "happy") {
-      // For happy or sad, you can set fixed values if desired.
-      adjustedMouthRadiusY = baseMouthRadiusY; 
-      adjustedMouthRadiusX = baseMouthRadiusX;
-    } else if (mouthState === "sad") {
+    } else if (mouthState === "happy" || mouthState === "sad") {
+      // For other expressions, you could adjust these values further if desired.
       adjustedMouthRadiusY = baseMouthRadiusY;
       adjustedMouthRadiusX = baseMouthRadiusX;
     }
     
-    // Draw the bottom half of an ellipse (semi-oval) to represent the mouth.
+    // Draw the bottom half of an ellipse to represent the mouth.
     ctx.fillStyle = "red";
     ctx.beginPath();
-    // Draw the bottom half using ctx.ellipse.
     ctx.ellipse(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, adjustedMouthRadiusY, 0, 0, Math.PI, false);
     ctx.fill();
     ctx.strokeStyle = "black";
@@ -82,6 +82,31 @@ document.addEventListener("DOMContentLoaded", function() {
     ctx.stroke();
     ctx.closePath();
   }
+  
+  function animateFace() {
+    let mouthState = "neutral";
+    let mouthAmplitude = 0; // Default amplitude (normalized between 0 and 1)
+    
+    if (isAudioPlaying && audioAnalyser) {
+      audioAnalyser.getByteFrequencyData(audioDataArray);
+      let sum = 0;
+      for (let i = 0; i < audioDataArray.length; i++) {
+        sum += audioDataArray[i];
+      }
+      let avg = sum / audioDataArray.length;
+      mouthAmplitude = avg / 255; // Normalize amplitude.
+      mouthState = "talking";
+    } else if (currentEmotion === "happy") {
+      mouthState = "happy";
+    } else if (currentEmotion === "sad") {
+      mouthState = "sad";
+    }
+    
+    // Call drawFace with the current emotion, state, and computed amplitude.
+    drawFace(currentEmotion, mouthState, mouthAmplitude);
+    requestAnimationFrame(animateFace);
+  }
+  
   
   function animateFace() {
     let mouthState = "neutral";

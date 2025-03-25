@@ -5,36 +5,53 @@ from gpiozero.pins.pigpio import PiGPIOFactory
 factory = PiGPIOFactory()
 app = Flask(__name__)
 
-# Motor definitions:
-# Motor A (left) – uses hardware PWM on FWD and a digital reverse flag.
-FWD_A = 18   # PWM for speed control (hardware PWM pin)
-REV_A = 27   # Digital reverse flag
-
+# Motor A (left)
+FWD_A = 18   # PWM: controls speed for Motor A (hardware PWM)
+REV_A = 27   # Digital: sets motor A direction (reverse)
 # Motor B (right)
-FWD_B = 19   # PWM for speed control (hardware PWM pin)
-REV_B = 9    # Digital reverse flag
+FWD_B = 19   # PWM: controls speed for Motor B (hardware PWM)
+REV_B = 9    # Digital: sets motor B direction (reverse)
 
 motorA_fwd = PWMLED(FWD_A, pin_factory=factory)
 motorA_rev = LED(REV_A, pin_factory=factory)
 motorB_fwd = PWMLED(FWD_B, pin_factory=factory)
 motorB_rev = LED(REV_B, pin_factory=factory)
 
-# Global variables for smoothing (current PWM values)
-current_left_pwm = 0.0
-current_right_pwm = 0.0
+# Set max throttle to 0.9 (so PWM duty cycle is scaled by 0.9)
+MAX_THROTTLE = 0.9
 
-# Constants for deadzone and smoothing:
-DEADZONE = 0.2       # If |x| is below this, treat x as 0.
-SMOOTHING = 0.1      # Smoothing factor for acceleration (0.0 to 1.0)
+# Global variables to store current PWM magnitude for each motor
+currentA = 0.0
+currentB = 0.0
+
+# Ramping rates
+FAST_RATE = 0.1   # Fast ramping when accelerating (increasing PWM)
+SLOW_RATE = 0.03  # Slow ramping when decelerating (reducing PWM)
+
+def update_pwm(current, target, fast_rate, slow_rate):
+    """
+    Smoothly update the current PWM value toward the target.
+    - When accelerating, increase quickly.
+    - When decelerating to zero, decrease slowly.
+    """
+    if target > current:
+        return min(current + fast_rate, target)
+    elif target < current:
+        # Use a slower deceleration when target is zero (gentle braking)
+        if target == 0:
+            return max(current - slow_rate, target)
+        else:
+            return max(current - fast_rate, target)
+    return current
 
 def stop_all():
-    global current_left_pwm, current_right_pwm
+    global currentA, currentB
+    currentA = 0.0
+    currentB = 0.0
     motorA_fwd.value = 0
     motorA_rev.off()
     motorB_fwd.value = 0
     motorB_rev.off()
-    current_left_pwm = 0.0
-    current_right_pwm = 0.0
 
 @app.route("/")
 def index():
@@ -42,82 +59,68 @@ def index():
 
 @app.route("/drive", methods=["POST"])
 def drive():
-    global current_left_pwm, current_right_pwm
+    global currentA, currentB
     data = request.json
-    # Read joystick values (expected range -1 to 1)
+    # Read joystick values.
+    # Invert the y-axis so that pushing up gives positive (forward) movement.
     x = float(data.get("x", 0))
-    y = float(data.get("y", 0))
-    # Throttle multiplier from the slider (0 to 1)
-    throttle_multiplier = float(data.get("throttle", 1))
+    y = -float(data.get("y", 0))
     
-    # Apply deadzone on steering (x axis)
-    if abs(x) < DEADZONE:
-        x = 0
+    # Differential mixing: 
+    # - Full up (y = 1, x = 0) -> left = 1, right = 1 (both forward)
+    # - Full down (y = -1, x = 0) -> left = -1, right = -1 (both reverse)
+    # - Pushing right (x positive) produces left > 0 and right < 0 (turn right)
+    left  = y + x
+    right = y - x
 
-    # Compute differential commands:
-    # left_raw and right_raw are calculated from the joystick's y (forward/backward)
-    # and x (steering). With a proper deadzone, a small x will yield:
-    #   left_raw = y + x  ≈ y, and right_raw = y - x ≈ y.
-    left_raw = y + x
-    right_raw = y - x
+    # Clamp values to the range [-1, 1]
+    left  = max(min(left, 1), -1)
+    right = max(min(right, 1), -1)
     
-    # Clamp values to [-1, 1]
-    left_raw = max(min(left_raw, 1), -1)
-    right_raw = max(min(right_raw, 1), -1)
+    # Compute target PWM magnitudes (absolute values) scaled by MAX_THROTTLE
+    targetA = abs(left) * MAX_THROTTLE
+    targetB = abs(right) * MAX_THROTTLE
     
-    # Invert left motor command to compensate for wiring differences.
-    # For example, if you push the joystick up (y=1, x=0) then:
-    #   left_raw = 1, right_raw = 1.
-    # But we want the left motor to actually run in reverse (to correct wiring),
-    # so we define:
-    left_cmd = -left_raw  
-    right_cmd = right_raw
+    # Update current PWM values using our ramping filter
+    new_currentA = update_pwm(currentA, targetA, FAST_RATE, SLOW_RATE)
+    new_currentB = update_pwm(currentB, targetB, FAST_RATE, SLOW_RATE)
+    currentA, currentB = new_currentA, new_currentB
     
-    # Determine target PWM (using throttle multiplier)
-    target_left_pwm = abs(left_cmd) * throttle_multiplier
-    target_right_pwm = abs(right_cmd) * throttle_multiplier
-    
-    # Smooth changes in PWM using exponential smoothing:
-    current_left_pwm += SMOOTHING * (target_left_pwm - current_left_pwm)
-    current_right_pwm += SMOOTHING * (target_right_pwm - current_right_pwm)
-    
-    # Debug prints:
-    print(f"Joystick: x={x:.2f}, y={y:.2f}, throttle_multiplier={throttle_multiplier:.2f}")
-    print(f"Raw: left_raw={left_raw:.2f}, right_raw={right_raw:.2f}")
-    print(f"Adjusted: left_cmd={left_cmd:.2f}, right_cmd={right_cmd:.2f}")
-    print(f"Target PWM: left={target_left_pwm:.2f}, right={target_right_pwm:.2f}")
-    print(f"Smoothed PWM: left={current_left_pwm:.2f}, right={current_right_pwm:.2f}")
+    # Debug prints
+    print(f"Joystick: x={x:.2f}, y={y:.2f}")
+    print(f"Differential: left={left:.2f}, right={right:.2f}")
+    print(f"Targets: Motor A = {targetA:.2f}, Motor B = {targetB:.2f}")
+    print(f"Ramped PWM: Motor A = {currentA:.2f}, Motor B = {currentB:.2f}")
     
     # Set Motor A (Left)
-    if left_cmd >= 0:
-        # For left motor, a non-negative command means "forward" (which, because of inversion,
-        # actually rotates the motor in the physically correct direction).
+    if left >= 0:
+        # Forward: disable reverse flag, apply PWM speed
         motorA_rev.off()
-        motorA_fwd.value = current_left_pwm
-        print(f"Motor A: FORWARD, PWM = {current_left_pwm:.2f}")
+        motorA_fwd.value = currentA
+        print(f"Motor A: FORWARD, PWM = {currentA:.2f}")
     else:
-        # Negative command: set reverse flag.
+        # Reverse: enable reverse flag, apply PWM speed
         motorA_rev.on()
-        motorA_fwd.value = current_left_pwm
-        print(f"Motor A: REVERSE, PWM = {current_left_pwm:.2f}")
+        motorA_fwd.value = currentA
+        print(f"Motor A: REVERSE, PWM = {currentA:.2f}")
     
     # Set Motor B (Right)
-    if right_cmd >= 0:
+    if right >= 0:
         motorB_rev.off()
-        motorB_fwd.value = current_right_pwm
-        print(f"Motor B: FORWARD, PWM = {current_right_pwm:.2f}")
+        motorB_fwd.value = currentB
+        print(f"Motor B: FORWARD, PWM = {currentB:.2f}")
     else:
         motorB_rev.on()
-        motorB_fwd.value = current_right_pwm
-        print(f"Motor B: REVERSE, PWM = {current_right_pwm:.2f}")
+        motorB_fwd.value = currentB
+        print(f"Motor B: REVERSE, PWM = {currentB:.2f}")
     
     return jsonify({
-        "left_cmd": left_cmd,
-        "right_cmd": right_cmd,
-        "target_left_pwm": target_left_pwm,
-        "target_right_pwm": target_right_pwm,
-        "smoothed_left_pwm": current_left_pwm,
-        "smoothed_right_pwm": current_right_pwm,
+        "left": left,
+        "right": right,
+        "targetA": targetA,
+        "targetB": targetB,
+        "currentA": currentA,
+        "currentB": currentB,
         "motorA_rev": motorA_rev.is_active,
         "motorB_rev": motorB_rev.is_active,
     })
@@ -129,4 +132,4 @@ def stop():
     return jsonify({"status": "stopped"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5001)
