@@ -1,135 +1,114 @@
+# movement.py modificado
+
 from flask import Flask, request, jsonify, render_template
-from gpiozero import PWMLED, LED
+from gpiozero import LED  # Cambiado de PWMLED a LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 
 factory = PiGPIOFactory()
 app = Flask(__name__)
 
-# Motor A (left)
-FWD_A = 18   # PWM: controls speed for Motor A (hardware PWM)
-REV_A = 27   # Digital: sets motor A direction (reverse)
-# Motor B (right)
-FWD_B = 19   # PWM: controls speed for Motor B (hardware PWM)
-REV_B = 9    # Digital: sets motor B direction (reverse)
+# --- Configuración de Pines GPIO ---
+# Usamos LED para todos los pines, ya que solo necesitamos ON/OFF
+# Motor A (Izquierdo)
+FWD_A = 18   # Pin para mover hacia adelante (ahora es ON/OFF)
+REV_A = 27   # Pin para habilitar reversa
+# Motor B (Derecho)
+FWD_B = 19   # Pin para mover hacia adelante (ahora es ON/OFF)
+REV_B = 9    # Pin para habilitar reversa
 
-motorA_fwd = PWMLED(FWD_A, pin_factory=factory)
+motorA_fwd = LED(FWD_A, pin_factory=factory)
 motorA_rev = LED(REV_A, pin_factory=factory)
-motorB_fwd = PWMLED(FWD_B, pin_factory=factory)
+motorB_fwd = LED(FWD_B, pin_factory=factory)
 motorB_rev = LED(REV_B, pin_factory=factory)
 
-# Set max throttle to 0.9 (so PWM duty cycle is scaled by 0.9)
-MAX_THROTTLE = 0.9
-
-# Global variables to store current PWM magnitude for each motor
-currentA = 0.0
-currentB = 0.0
-
-# Ramping rates
-FAST_RATE = 0.1   # Fast ramping when accelerating (increasing PWM)
-SLOW_RATE = 0.03  # Slow ramping when decelerating (reducing PWM)
-
-def update_pwm(current, target, fast_rate, slow_rate):
-    """
-    Smoothly update the current PWM value toward the target.
-    - When accelerating, increase quickly.
-    - When decelerating to zero, decrease slowly.
-    """
-    if target > current:
-        return min(current + fast_rate, target)
-    elif target < current:
-        # Use a slower deceleration when target is zero (gentle braking)
-        if target == 0:
-            return max(current - slow_rate, target)
-        else:
-            return max(current - fast_rate, target)
-    return current
+# --- Funciones de Control ---
 
 def stop_all():
-    global currentA, currentB
-    currentA = 0.0
-    currentB = 0.0
-    motorA_fwd.value = 0
+    """Detiene ambos motores."""
+    motorA_fwd.off()
     motorA_rev.off()
-    motorB_fwd.value = 0
+    motorB_fwd.off()
     motorB_rev.off()
+    print("MOTORES DETENIDOS")
+
+def move_forward():
+    """Mueve ambos motores hacia adelante."""
+    motorA_rev.off()
+    motorA_fwd.on() # Siempre a máxima velocidad (ON)
+    motorB_rev.off()
+    motorB_fwd.on() # Siempre a máxima velocidad (ON)
+    print("Moviendo hacia ADELANTE")
+
+def move_backward():
+    """Mueve ambos motores hacia atrás."""
+    motorA_rev.on()  # Habilita reversa
+    motorA_fwd.on() # Siempre a máxima velocidad (ON)
+    motorB_rev.on()  # Habilita reversa
+    motorB_fwd.on() # Siempre a máxima velocidad (ON)
+    print("Moviendo hacia ATRÁS")
+
+def turn_left():
+    """Gira a la izquierda (Motor A atrás, Motor B adelante)."""
+    motorA_rev.on()  # Motor A en reversa
+    motorA_fwd.on()
+    motorB_rev.off() # Motor B hacia adelante
+    motorB_fwd.on()
+    print("Girando a la IZQUIERDA")
+
+def turn_right():
+    """Gira a la derecha (Motor A adelante, Motor B atrás)."""
+    motorA_rev.off() # Motor A hacia adelante
+    motorA_fwd.on()
+    motorB_rev.on()  # Motor B en reversa
+    motorB_fwd.on()
+    print("Girando a la DERECHA")
+
+# --- Rutas Flask ---
 
 @app.route("/")
 def index():
+    """Sirve la página HTML de control."""
     return render_template("index.html")
 
-@app.route("/drive", methods=["POST"])
-def drive():
-    global currentA, currentB
+@app.route("/control", methods=["POST"]) # Cambiado de /drive a /control
+def control():
+    """Recibe comandos de dirección y activa los motores."""
     data = request.json
-    # Read joystick values.
-    # Invert the y-axis so that pushing up gives positive (forward) movement.
-    x = float(data.get("x", 0))
-    y = -float(data.get("y", 0))
-    
-    # Differential mixing: 
-    # - Full up (y = 1, x = 0) -> left = 1, right = 1 (both forward)
-    # - Full down (y = -1, x = 0) -> left = -1, right = -1 (both reverse)
-    # - Pushing right (x positive) produces left > 0 and right < 0 (turn right)
-    left  = y + x
-    right = y - x
+    command = data.get("command")
 
-    # Clamp values to the range [-1, 1]
-    left  = max(min(left, 1), -1)
-    right = max(min(right, 1), -1)
-    
-    # Compute target PWM magnitudes (absolute values) scaled by MAX_THROTTLE
-    targetA = abs(left) * MAX_THROTTLE
-    targetB = abs(right) * MAX_THROTTLE
-    
-    # Update current PWM values using our ramping filter
-    new_currentA = update_pwm(currentA, targetA, FAST_RATE, SLOW_RATE)
-    new_currentB = update_pwm(currentB, targetB, FAST_RATE, SLOW_RATE)
-    currentA, currentB = new_currentA, new_currentB
-    
-    # Debug prints
-    print(f"Joystick: x={x:.2f}, y={y:.2f}")
-    print(f"Differential: left={left:.2f}, right={right:.2f}")
-    print(f"Targets: Motor A = {targetA:.2f}, Motor B = {targetB:.2f}")
-    print(f"Ramped PWM: Motor A = {currentA:.2f}, Motor B = {currentB:.2f}")
-    
-    # Set Motor A (Left)
-    if left >= 0:
-        # Forward: disable reverse flag, apply PWM speed
-        motorA_rev.off()
-        motorA_fwd.value = currentA
-        print(f"Motor A: FORWARD, PWM = {currentA:.2f}")
+    if command == "forward":
+        move_forward()
+    elif command == "backward":
+        move_backward()
+    elif command == "left":
+        turn_left()
+    elif command == "right":
+        turn_right()
+    elif command == "stop": # El stop también se puede manejar aquí si se prefiere
+        stop_all()
     else:
-        # Reverse: enable reverse flag, apply PWM speed
-        motorA_rev.on()
-        motorA_fwd.value = currentA
-        print(f"Motor A: REVERSE, PWM = {currentA:.2f}")
-    
-    # Set Motor B (Right)
-    if right >= 0:
-        motorB_rev.off()
-        motorB_fwd.value = currentB
-        print(f"Motor B: FORWARD, PWM = {currentB:.2f}")
-    else:
-        motorB_rev.on()
-        motorB_fwd.value = currentB
-        print(f"Motor B: REVERSE, PWM = {currentB:.2f}")
-    
-    return jsonify({
-        "left": left,
-        "right": right,
-        "targetA": targetA,
-        "targetB": targetB,
-        "currentA": currentA,
-        "currentB": currentB,
-        "motorA_rev": motorA_rev.is_active,
-        "motorB_rev": motorB_rev.is_active,
-    })
+        # Si el comando no es reconocido, detener por seguridad
+        stop_all()
+        return jsonify({"status": "error", "message": "Comando no reconocido"}), 400
+
+    return jsonify({"status": "ok", "command": command})
 
 @app.route("/stop", methods=["POST"])
-def stop():
+def stop_command():
+    """Ruta específica para detener los motores."""
     stop_all()
-    print("STOPPED")
     return jsonify({"status": "stopped"})
 
+# --- Inicio de la Aplicación ---
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001)
+    try:
+        stop_all() # Asegurarse de que los motores estén detenidos al iniciar
+        app.run(host="0.0.0.0", port=5001)
+    finally:
+        # Limpieza de GPIO al cerrar la aplicación
+        stop_all()
+        motorA_fwd.close()
+        motorA_rev.close()
+        motorB_fwd.close()
+        motorB_rev.close()
+        print("GPIO limpiado.")

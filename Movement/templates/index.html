@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>RPi Joystick</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPi Robot Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     body {
       font-family: sans-serif;
@@ -12,70 +12,148 @@
       justify-content: center;
       height: 100vh;
       margin: 0;
-      background: #f7f7f7;
+      background: #f0f0f0;
+      /* Evitar selección de texto en botones en móvil */
+      -webkit-user-select: none; /* Safari */
+      -ms-user-select: none; /* IE 10+ */
+      user-select: none; /* Standard syntax */
     }
-    /* Larger joystick zone for finer control */
-    #joystick-zone {
-      width: 500px;
-      height: 500px;
-      background: #eee;
-      border-radius: 50%;
-      position: relative;
-      margin-bottom: 20px;
+    .control-grid {
+      display: grid;
+      grid-template-areas:
+        ". forward ."
+        "left stop right"
+        ". backward .";
+      gap: 15px; /* Espacio entre botones */
+      margin-bottom: 30px;
     }
-    /* Container for throttle slider */
-    #throttle-container {
+    .control-button {
+      width: 100px;
+      height: 100px;
+      font-size: 20px;
+      font-weight: bold;
+      border: 2px solid #555;
+      border-radius: 15px;
+      background-color: #ddd;
+      cursor: pointer;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      margin-bottom: 20px;
+      justify-content: center;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+      transition: background-color 0.1s, transform 0.1s;
     }
+    .control-button:active {
+      background-color: #bbb;
+      transform: scale(0.95); /* Efecto de presión */
+    }
+    #button-forward { grid-area: forward; background-color: #aae8aa;}
+    #button-backward { grid-area: backward; background-color: #aae8aa;}
+    #button-left { grid-area: left; background-color: #aae8aa;}
+    #button-right { grid-area: right; background-color: #aae8aa;}
+    #button-stop {
+      grid-area: stop;
+      background-color: #e8aaaa; /* Rojo para parar */
+      width: 80px; /* Más pequeño */
+      height: 80px;
+      align-self: center; /* Centrar verticalmente */
+      justify-self: center; /* Centrar horizontalmente */
+     }
+     /* Añadir iconos simples (opcional) */
+     #button-forward::before { content: '▲'; font-size: 30px; }
+     #button-backward::before { content: '▼'; font-size: 30px; }
+     #button-left::before { content: '◄'; font-size: 30px; }
+     #button-right::before { content: '►'; font-size: 30px; }
+     #button-stop::before { content: '■'; font-size: 30px; }
+
+     h2 {
+       margin-bottom: 40px;
+     }
   </style>
 </head>
 <body>
-  <h2>Joystick Control</h2>
-  <div id="joystick-zone"></div>
-  <div id="throttle-container">
-    <label for="throttleSlider">Max Throttle:</label>
-    <input type="range" id="throttleSlider" min="0" max="1" step="0.01" value="1">
+  <h2>Control del Robot</h2>
+
+  <div class="control-grid">
+    <button class="control-button" id="button-forward"></button>
+    <button class="control-button" id="button-left"></button>
+    <button class="control-button" id="button-stop"></button>
+    <button class="control-button" id="button-right"></button>
+    <button class="control-button" id="button-backward"></button>
   </div>
-  <button onclick="stop()">STOP</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/nipplejs@0.9.0/dist/nipplejs.min.js"></script>
   <script>
-    // Configure the joystick with a larger size and zone.
-    var options = {
-      zone: document.getElementById('joystick-zone'),
-      mode: 'static',
-      position: { left: '50%', top: '50%' },
-      color: 'black',
-      size: 400 // Diameter of the joystick control (adjust as needed)
+    const buttons = {
+        forward: document.getElementById('button-forward'),
+        backward: document.getElementById('button-backward'),
+        left: document.getElementById('button-left'),
+        right: document.getElementById('button-right'),
+        stop: document.getElementById('button-stop')
     };
-    var joystick = nipplejs.create(options);
 
-    // Use the move event to send normalized x,y values
-    joystick.on('move', function(evt, data) {
-      if (data && data.vector) {
-        let x = data.vector.x;
-        let y = data.vector.y;
-        // Optionally, invert y-axis if necessary: y = -y;
-        let throttle = parseFloat(document.getElementById("throttleSlider").value);
-        fetch("/drive", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ x: x.toFixed(2), y: y.toFixed(2), throttle: throttle.toFixed(2) })
+    // Función para enviar comandos al backend
+    function sendCommand(command) {
+      console.log("Sending command:", command); // Log para depuración
+      fetch("/control", { // Asegúrate que la ruta coincida con Flask
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: command })
+      })
+      .then(response => response.json())
+      .then(data => console.log("Response:", data))
+      .catch(error => console.error("Error:", error));
+    }
+
+    // Función para enviar el comando de parada
+    function sendStop() {
+      console.log("Sending command: stop"); // Log para depuración
+      fetch("/stop", { // Ruta específica para detener
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}) // No necesita cuerpo, pero se puede enviar vacío
+      })
+      .then(response => response.json())
+      .then(data => console.log("Stop Response:", data))
+      .catch(error => console.error("Error stopping:", error));
+    }
+
+    // --- Event Listeners para botones direccionales ---
+    // Usamos mousedown/touchstart para iniciar el movimiento
+    // Usamos mouseup/touchend/mouseleave para detener el movimiento
+
+    ['forward', 'backward', 'left', 'right'].forEach(direction => {
+      const button = buttons[direction];
+      if (button) {
+        // Iniciar movimiento al presionar
+        button.addEventListener('mousedown', () => sendCommand(direction));
+        button.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevenir eventos de mouse duplicados en táctil
+            sendCommand(direction);
+        }, { passive: false }); // Necesario para preventDefault
+
+        // Detener movimiento al soltar o salir del botón
+        button.addEventListener('mouseup', sendStop);
+        button.addEventListener('mouseleave', sendStop); // Detener si el cursor sale del botón mientras está presionado
+        button.addEventListener('touchend', (e) => {
+             e.preventDefault();
+             sendStop();
+        });
+        button.addEventListener('touchcancel', (e) => { // Por si la interacción táctil se cancela
+             e.preventDefault();
+             sendStop();
         });
       }
     });
 
-    // When the joystick is released, send a stop command.
-    joystick.on('end', function() {
-      fetch("/stop", { method: "POST" });
-    });
-
-    function stop() {
-      fetch("/stop", { method: "POST" });
+    // --- Event Listener para el botón STOP ---
+    // Click normal o toque para detener
+    if (buttons.stop) {
+        buttons.stop.addEventListener('click', sendStop);
+        buttons.stop.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevenir click fantasma
+            sendStop();
+        }, { passive: false });
     }
+
   </script>
 </body>
 </html>
