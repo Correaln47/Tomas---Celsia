@@ -1,0 +1,13 @@
+[Unit]
+Description=Robot Interaction Web Service
+After=network.target # Inicia después de que la red esté disponible
+
+[Service]
+User=celsia
+WorkingDirectory=/home/celsia/tomas # Ruta a la carpeta del script app.py
+ExecStart=/usr/bin/python3 /home/celsia/tomas/app.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=Robot Movement Control Service
+# Asegura que la red y pigpiod estén listos antes de iniciar
+After=network.target pigpiod.service
+Requires=pigpiod.service
+
+[Service]
+User=celsia  # Usuario que ejecutará el script (usualmente 'pi')
+WorkingDirectory=/home/celsia/tomas/Movement # Ruta a la carpeta del script movement.py
+# Ejecuta python3 con la ruta completa al script
+ExecStart=/usr/bin/python3 /home/celsia/tomas/Movement/movement.py
+Restart=always # Reinicia el servicio si falla
+RestartSec=3   # Espera 3 segundos antes de reiniciar
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Robot Interaction UI
+Comment=Launch Robot Interaction Web Interface
+# Espera un poco para asegurar que el servidor Flask esté listo
+Exec=sh -c "sleep 15 && chromium-browser --kiosk --disable-infobars http://127.0.0.1:5000"
+# O si prefieres no usar kiosk (pantalla completa):
+# Exec=sh -c "sleep 15 && chromium-browser http://127.0.0.1:5000"
+StartupNotify=false
+Terminal=false

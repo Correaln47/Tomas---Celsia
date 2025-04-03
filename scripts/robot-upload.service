@@ -1,0 +1,13 @@
+[Unit]
+Description=Robot Video Upload Service
+After=network.target
+
+[Service]
+User=celsia
+WorkingDirectory=/home/celsia/tomas # Ruta a la carpeta del script upload_server.py
+ExecStart=/usr/bin/python3 /home/celsia/tomas/upload_server.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
