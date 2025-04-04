@@ -1,0 +1,24 @@
+[Unit]
+Description=pigpio Daemon Service
+After=network.target
+# Si tu script necesita acceso a otros recursos al inicio, añádelos aquí
+# Por ejemplo: After=local-fs.target
+
+[Service]
+# Asegúrate que la ruta en ExecStart sea la correcta (del paso 1)
+ExecStart=/usr/bin/pigpiod -l
+# El flag -l puede deshabilitar características de red si no las necesitas (más seguro)
+# Si necesitas acceso remoto al demonio pigpiod, quita el flag -l:
+# ExecStart=/usr/bin/pigpiod
+
+# Type=forking es común para demonios más antiguos, 'simple' para más nuevos.
+# 'forking' suele funcionar bien con pigpiod.
+Type=forking
+Restart=always    # Reinicia el servicio si falla
+RestartSec=1      # Espera 1 segundo antes de reiniciar
+
+# Opcional: Especificar usuario (si no quieres que corra como root)
+# User=pi # O tu usuario de Ubuntu si tiene permisos adecuados (puede requerir ajustes de udev)
+
+[Install]
+WantedBy=multi-user.target
