@@ -77,13 +77,13 @@ def control():
     command = data.get("command")
 
     if command == "forward":
-        move_forward()
-    elif command == "backward":
-        move_backward()
-    elif command == "left":
-        turn_left()
-    elif command == "right":
         turn_right()
+    elif command == "backward":
+        turn_left()
+    elif command == "left":
+        move_forward()
+    elif command == "right":
+        move_backward()
     elif command == "stop": # El stop también se puede manejar aquí si se prefiere
         stop_all()
     else:
