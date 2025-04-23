@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Iniciar Servidores Tomas---Celsia
+Comment=Inicia los servidores Python para la aplicación Tomas (Principal, Movimiento, Carga)
+# Ruta absoluta al script .sh que queremos ejecutar
+Exec=/home/celsia/Tomas---Celsia/start_servers.sh
+# Ruta absoluta al directorio de trabajo para el script
+Path=/home/celsia/Tomas---Celsia/
+Icon=utilities-terminal
+Terminal=false
+StartupNotify=false
+Categories=Application;Development;
