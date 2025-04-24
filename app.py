@@ -18,9 +18,9 @@ last_emotion = None
 emotion_start_time = None
 
 emotion_buffer = []  # list of tuples (timestamp, emotion)
-buffer_window = 5    # time window in seconds
-threshold_ratio = 0.7  # require 70% or more of detections to be the same emotion
-min_count = 10  
+buffer_window = 4    # time window in seconds
+threshold_ratio = 0.6  # require % or more of detections to be the same emotion
+min_count = 7  
 
 # --- Load face detector and TFLite emotion model ---
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
