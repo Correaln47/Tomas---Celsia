@@ -25,7 +25,21 @@ threshold_ratio = 0.6 # Ratio mínimo de la emoción dominante en el buffer para
 min_count = 5 # Cantidad mínima de detecciones en el buffer para considerar la estabilización
 forced_video_to_play = None # Guarda el nombre del video a forzar desde la interfaz de control
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haascade_frontalface_default.xml")
+# --- Asegurarse de que la ruta del cascade classifier sea correcta ---
+# cv2.data.haarcascades es la ubicación predeterminada de OpenCV para estos archivos
+# Si OpenCV fue instalado de forma no estándar, podrías necesitar la ruta completa:
+# face_cascade = cv2.CascadeClassifier('/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml')
+# O buscarlo en el entorno virtual
+try:
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    if face_cascade.empty():
+        print("CRITICAL ERROR: Cascade Classifier 'haarcascade_frontalface_default.xml' not loaded.")
+        # Considerar agregar un exit() o un mecanismo de reintento/notificación
+except Exception as e:
+    print(f"CRITICAL ERROR loading Cascade Classifier: {e}")
+    face_cascade = None # Asegurar que es None si falla
+
+
 emotion_labels = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
 
 interpreter = None
@@ -90,6 +104,7 @@ def detection_loop():
     print("Detection Loop: Initializing camera...")
     try:
         # Intenta abrir la cámara (0 es típicamente la cámara predeterminada)
+        # Asegúrate de que la cámara esté disponible y no la esté usando otro proceso
         cap = cv2.VideoCapture(0)
         if cap.isOpened():
             # Reducir resolución para mejorar rendimiento en RPi
@@ -97,7 +112,7 @@ def detection_loop():
             cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
             print(f"Camera initialized. Resolution: {cap.get(cv2.CAP_PROP_FRAME_WIDTH)}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT)}")
         else:
-            print("CRITICAL: Camera not accessible.")
+            print("CRITICAL: Camera not accessible (VideoCapture.isOpened() is false).")
             # Intentar cargar fallback si la cámara falla persistentemente
             try:
                  fallback_img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "test.png")
@@ -107,13 +122,34 @@ def detection_loop():
                      if ret_fb:
                          with frame_lock:
                              current_frame = jpeg_fb.tobytes()
+                             print("Using fallback image for stream.")
+                     else:
+                         print("Failed to encode fallback image.")
                  else:
                      print("Fallback image not found.")
             except Exception as e_fb:
                 print(f"Error loading fallback image: {e_fb}")
             return # Salir del hilo si la cámara no se abre
+
     except Exception as e_cap:
         print(f"CRITICAL ERROR initializing VideoCapture: {e_cap}")
+        # En caso de excepción al inicializar VideoCapture, intentar usar fallback
+        try:
+             fallback_img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "test.png")
+             fallback_img = cv2.imread(fallback_img_path)
+             if fallback_img is not None:
+                 ret_fb, jpeg_fb = cv2.imencode('.jpg', fallback_img)
+                 if ret_fb:
+                     with frame_lock:
+                         current_frame = jpeg_fb.tobytes()
+                         print("Using fallback image due to VideoCapture initialization error.")
+                 else:
+                     print("Failed to encode fallback image after error.")
+             else:
+                 print("Fallback image not found after error.")
+        except Exception as e_fb_err:
+             print(f"Error loading fallback image after error: {e_fb_err}")
+
         return # Salir del hilo en caso de excepción
 
     # Intervalo para procesar la detección (para no sobrecargar la CPU)
@@ -149,16 +185,16 @@ def detection_loop():
         ret, frame = cap.read() # Capturar un frame
         if not ret or frame is None:
             # Si no se puede leer el frame, esperar un poco y continuar
-            print("Failed to read frame from camera.")
+            # print("Failed to read frame from camera.") # Descomentar para depurar fallos de lectura
             with frame_lock: current_frame = None # Limpiar frame
             time.sleep(0.1)
             continue
 
         current_time_loop = time.time()
-        processed_frame_for_stream = frame.copy() # Copia para el stream de video
+        processed_frame_for_stream = frame.copy() # Copia para el stream
 
         # Procesar detección solo si no está completa y ha pasado el intervalo
-        if not detection_complete and (current_time_loop - last_detection_time > detection_processing_interval):
+        if face_cascade is not None and not detection_complete and (current_time_loop - last_detection_time > detection_processing_interval):
             last_detection_time = current_time_loop
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -226,7 +262,7 @@ def detection_loop():
                 if last_emotion:
                      cv2.putText(processed_frame_for_stream, last_emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-            else: # No faces detected
+            else: # No faces
                 # Si no hay caras, resetear el buffer y el estado si la detección no está completa
                 if not detection_complete:
                     emotion_buffer.clear()
@@ -260,6 +296,7 @@ detection_thread.start()
 
 def gen_video():
     """Generador para el stream de video MJPEG."""
+    print("gen_video: Client connected, starting stream generation.") # Log para depurar si se accede
     global current_frame
     # Asegurarse de que haya un frame inicial para evitar errores al inicio
     # Puedes cargar un frame placeholder aquí si prefieres
@@ -279,9 +316,10 @@ def gen_video():
                  with open(placeholder_path, "rb") as f: img_bytes = f.read()
                  yield (b'--frame\r\n'
                         b'Content-Type: image/jpeg\r\n\r\n' + img_bytes + b'\r\n')
-             except:
-                 # Si el placeholder falla, esperar un poco
-                 time.sleep(0.5) # Esperar más si no hay nada que enviar
+             except Exception as e:
+                 # Si el placeholder falla, esperar un poco y loguear
+                 print(f"gen_video: Error sending placeholder: {e}")
+                 time.sleep(0.5)
 
 
         # Controlar la tasa de frames enviados en el stream
@@ -306,6 +344,15 @@ def route_index():
 @app.route('/video_feed')
 def video_feed_route():
     """Ruta para el stream de video en vivo."""
+    # Asegurarse de que el face_cascade se haya cargado antes de intentar usar la cámara para detección
+    # aunque gen_video puede enviar un placeholder si la cámara falla en el hilo de detección
+    if face_cascade is None and interpreter is None:
+        print("API /video_feed: Neither face_cascade nor TFLite model loaded. Camera/detection likely non-functional.")
+        # Podrías considerar devolver un error 500 o un placeholder fijo aquí
+        # En este caso, gen_video intentará enviar el placeholder.
+        pass # Continúa para permitir que gen_video maneje la falta de frames
+
+
     return Response(gen_video(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/detection_status')
@@ -351,8 +398,9 @@ def snapshot_route():
             placeholder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"static","test.png")
             with open(placeholder_path, "rb") as f:
                 return Response(f.read(), mimetype='image/jpeg')
-        except:
-            return "No snapshot available or placeholder not found", 404 # O un error más amigable
+        except Exception as e:
+             print(f"API /snapshot: Placeholder not found: {e}")
+             return "No snapshot available or placeholder not found", 404 # O un error más amigable
 
 @app.route('/get_random_audio')
 def get_random_audio_route():
