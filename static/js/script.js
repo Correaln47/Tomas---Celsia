@@ -136,29 +136,27 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   
     function restartInteraction() {
-        console.log("JS: RESTARTING interaction sequence...");
-        isAudioPlaying = false; audioAnalyser = null; audioDataArray = null;
-        currentForcedVideoProcessed = null; 
-        currentEmotion = "neutral"; drawFace("neutral", "neutral", 0); 
-
-        // Detener y limpiar el video
-        interactionVideo.pause();
-        interactionVideo.removeAttribute('src'); 
-        interactionVideo.load(); // Importante para que el navegador no mantenga el video anterior en memoria
+    console.log("JS: RESTARTING interaction sequence - FORCING RELOAD.");
+    
+    // Detener polling y cualquier actividad pendiente antes de recargar
+    if (pollInterval) clearInterval(pollInterval);
+        isAudioPlaying = false;
+        if (audioContext && audioContext.state !== 'closed') {
+            // No es estrictamente necesario cerrar el audioContext aquí, 
+            // el navegador lo hará al recargar, pero puede ser buena práctica
+            // audioContext.close().catch(e => console.warn("Error closing audio context", e));
+            audioContext = null; // Para que se recree en la próxima interacción
+        }
+        audioAnalyser = null;
+        audioDataArray = null;
         
-        // No necesitamos llamar a fetch('/restart') desde AQUÍ,
-        // ya que el servidor se reinicia por el botón "skip" o por su propia lógica interna.
-        // El polling recogerá el estado reiniciado del servidor.
+        interactionVideo.pause();
+        interactionVideo.removeAttribute('src');
+        interactionVideo.load(); // Intenta liberar recursos
 
-        document.getElementById('main-container').style.display = "flex";
-        videoContainer.style.display = "none";
-        videoFeed.style.display = "block"; 
-        snapshotContainer.style.display = "none"; 
-        emotionText.innerText = ""; 
-
-        if (pollInterval) clearInterval(pollInterval); // Limpiar el intervalo existente
-        pollInterval = setInterval(pollDetectionStatus, 1000); // Reiniciar el polling
-        console.log("JS: Polling (re)started by restartInteraction().");
+        // Forzar recarga de la página de interacción.
+        // Esto asegura un estado completamente limpio.
+        window.location.reload(); 
     }
   
     console.log("JS: Document loaded. Initializing.");

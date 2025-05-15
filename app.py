@@ -22,7 +22,7 @@ emotion_start_time = None
 emotion_buffer = []
 buffer_window = 4
 threshold_ratio = 0.6
-min_count = 7 # Reducir si la detección tarda mucho en estabilizarse, ej. 5
+min_count = 5 # Reducir si la detección tarda mucho en estabilizarse, ej. 5
 forced_video_to_play = None
 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
@@ -89,7 +89,7 @@ def detection_loop():
     except Exception as e_cap:
         print(f"CRITICAL ERROR initializing VideoCapture: {e_cap}"); return
 
-    detection_processing_interval = 0.2 # Procesar detección cada 200ms (5 FPS)
+    detection_processing_interval = 0.05 # Procesar detección cada 200ms (5 FPS)
     last_detection_time = time.time()
 
     while True:
