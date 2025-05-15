@@ -5,31 +5,37 @@ body {
   background: #FF7900; /* Color Naranja */
   font-family: Arial, sans-serif;
   overflow: hidden; /* Prevent scrolling */
+  display: flex; /* Usar flexbox para centrar contenido verticalmente si es necesario */
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh; /* Asegura que ocupe al menos el alto de la ventana */
 }
 
 /* Main container styling */
 #main-container {
   width: 100%;
-  height: 100vh;
+  max-width: 800px; /* Limita el ancho máximo para pantallas grandes */
+  height: 100vh; /* Permitir que flex items controlen el alto */
   display: flex;
-  flex-direction: column-reverse; /* Cambiado para poner video abajo y canvas arriba */
+  flex-direction: column; /* Cambiado a column para que los items fluyan normalmente */
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* Alinear items al inicio del contenedor flex */
   padding: 20px;
-  /* background: #fff; Eliminado para que tome el naranja del body o puedes ponerlo aquí también */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  border-radius: 8px;
+  box-sizing: border-box; /* Incluir padding en el tamaño total */
   position: relative; /* Necesario para posicionar el comentario del botón de apagado */
+  overflow-y: auto; /* Permitir scroll si el contenido excede el alto */
 }
 
 /* Video feed and snapshot styling with orange accents */
 #videoFeed, #snapshot {
-  max-width: 90%;
-  max-height: 45vh; /* Ajustado para dar espacio al canvas y comentario */
+  width: 100%; /* Que la imagen/video ocupe todo el ancho disponible en el contenedor */
+  height: auto; /* Mantener la relación de aspecto */
+  max-height: 60vh; /* Aumentar el alto máximo para que se vea más grande */
   border: 3px solid #F39C12; /* Orange accent */
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  margin-bottom: 10px; /* Espacio entre el video/snapshot y el canvas */
+  margin-top: 10px; /* Espacio entre el canvas y el video/snapshot */
+  object-fit: contain; /* Asegura que la imagen/video se ajuste sin cortarse */
 }
 
 /* Detected emotion text styling */
@@ -37,24 +43,24 @@ body {
   font-size: 2.5rem; /* Ligeramente más pequeño si es necesario */
   font-weight: 600;
   color: #333;
-  margin-top: 5px;
+  margin-top: 15px; /* Más espacio por encima */
+  margin-bottom: 10px; /* Espacio por debajo */
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Face canvas styling (bigger for vertical displays) */
 #faceCanvas {
-  /* margin-top: 20px; Eliminado o ajustado ya que ahora está arriba */
-  width: 80%;
-  max-width: 800px;
-  max-height: 45vh; /* Ajustado para dar espacio */
-  height: auto;
+  width: 80%; /* Ancho relativo */
+  max-width: 600px; /* Ancho máximo */
+  height: auto; /* Mantener relación de aspecto */
+  max-height: 30vh; /* Un poco menos alto para dejar espacio al video */
   border: 2px solid #ccc;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   margin-bottom: 10px; /* Espacio antes del video */
 }
 
-/* Video container styling */
+/* Video container styling (for the full-screen video) */
 #video-container {
   position: fixed;
   top: 0;
@@ -87,6 +93,7 @@ body {
   border-radius: 5px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   text-align: center;
+  z-index: 10; /* Asegura que esté por encima de otros elementos */
 }
 
 .power-button-comment p {
@@ -106,10 +113,10 @@ body {
   #videoFeed, #snapshot {
     width: 100%;
     height: auto;
-    max-height: 40vh;
+    max-height: 50vh; /* Ajuste para pantallas más pequeñas */
   }
   #faceCanvas {
-    max-height: 40vh;
+    max-height: 35vh; /* Ajuste para pantallas más pequeñas */
   }
   #main-container {
     margin: 10px;

@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, request, render_template_string, redirect, url_for, flash, abort, jsonify
+from flask import Flask, request, render_template, redirect, url_for, flash, abort, jsonify
 from werkzeug.utils import secure_filename
 import logging
 
@@ -17,6 +17,7 @@ except NameError:
 STATIC_FOLDER = os.path.join(BASE_DIR, 'static') # Carpeta estática base
 VIDEO_FOLDER = os.path.join(STATIC_FOLDER, 'video')
 AUDIO_FOLDER = os.path.join(STATIC_FOLDER, 'audio') # Carpeta base para audio
+TEMPLATES_FOLDER = os.path.join(BASE_DIR, 'templates') # Nueva carpeta para templates
 
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'webm', 'mov', 'avi'}
 ALLOWED_AUDIO_EXTENSIONS = {'mp3', 'wav'}
@@ -25,13 +26,13 @@ ALLOWED_EMOTION_FOLDERS = ["angry", "fear", "happy", "neutral", "no_face", "sad"
 
 PORT = 5002
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=TEMPLATES_FOLDER) # Especificar la carpeta de templates
 app.config['VIDEO_FOLDER'] = VIDEO_FOLDER
 app.config['AUDIO_FOLDER'] = AUDIO_FOLDER
 app.secret_key = 'super secret key'
 
 # --- Asegurarse que las carpetas base existan ---
-for folder in [VIDEO_FOLDER, AUDIO_FOLDER]:
+for folder in [VIDEO_FOLDER, AUDIO_FOLDER, TEMPLATES_FOLDER]: # Añadir templates folder
     if not os.path.exists(folder):
         try:
             os.makedirs(folder)
@@ -41,6 +42,7 @@ for folder in [VIDEO_FOLDER, AUDIO_FOLDER]:
             # Considerar terminar si no se puede crear
     else:
         logging.info(f"Usando carpeta existente: {folder}")
+
 
 # --- Asegurarse que las subcarpetas de emociones existan ---
 for emotion in ALLOWED_EMOTION_FOLDERS:
@@ -57,120 +59,11 @@ def allowed_file(filename, allowed_extensions):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-# --- Plantilla HTML Modificada ---
-HTML_TEMPLATE = """
-<!doctype html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>Gestionar Archivos de Tomas</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 900px; margin: auto; }
-        h1, h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 30px;}
-        .upload-section { margin-bottom: 20px; padding: 15px; border: 1px solid #eee; border-radius: 5px; background-color: #f9f9f9; }
-        .file-list { list-style: none; padding-left: 0; }
-        .file-list li { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; border-bottom: 1px dotted #eee; }
-        .file-list li:nth-child(odd) { background-color: #fefefe; }
-        .file-list form { display: inline; margin-left: 10px; }
-        .file-list button { background-color: #f44336; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 0.9em; }
-        .file-list button:hover { background-color: #da190b; }
-        .flash { padding: 10px; margin-bottom: 15px; border-radius: 4px; }
-        .flash.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .flash.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        label { margin-right: 5px; }
-        select, input[type=file], input[type=submit] { padding: 5px; margin-right: 10px; }
-        .emotion-group { margin-bottom: 15px; }
-        .emotion-title { font-weight: bold; margin-bottom: 5px; color: #555; }
-    </style>
-</head>
-<body>
-    <h1>Gestionar Archivos Multimedia de Tomas</h1>
-
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
-
-    <div class="upload-section">
-        <h2>Subir Nuevo Video</h2>
-        <form method=post enctype=multipart/form-data action="{{ url_for('upload_file') }}">
-          <input type=file name=video accept="video/*">
-          <input type=submit value="Subir Video">
-        </form>
-    </div>
-
-    <div class="upload-section">
-        <h2>Subir Nuevo Audio</h2>
-        <form method=post enctype=multipart/form-data action="{{ url_for('upload_file') }}">
-          <label for="emotion">Emoción:</label>
-          <select name="emotion" id="emotion" required>
-              <option value="" disabled selected>-- Selecciona Emoción --</option>
-              {% for emotion in allowed_emotions %}
-              <option value="{{ emotion }}">{{ emotion.capitalize() }}</option>
-              {% endfor %}
-          </select>
-          <input type=file name=audio accept="audio/*" required>
-          <input type=submit value="Subir Audio">
-        </form>
-    </div>
-
-    <hr>
-
-    <div>
-        <h2>Videos Actuales (en static/video):</h2>
-        {% if videos %}
-            <ul class="file-list">
-            {% for filename in videos %}
-                <li>
-                    <span>{{ filename }}</span>
-                    <form method=post action="{{ url_for('delete_file', type='video', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este video?');">
-                        <button type=submit>Eliminar</button>
-                    </form>
-                </li>
-            {% endfor %}
-            </ul>
-        {% else %}
-            <p>No hay videos aún.</p>
-        {% endif %}
-    </div>
-
-    <div>
-        <h2>Audios Actuales (en static/audio/...):</h2>
-        {% if audio_files_by_emotion %}
-            {% for emotion, files in audio_files_by_emotion.items() %}
-                <div class="emotion-group">
-                    <div class="emotion-title">{{ emotion.capitalize() }}:</div>
-                    {% if files %}
-                        <ul class="file-list">
-                        {% for filename in files %}
-                            <li>
-                                <span>{{ filename }}</span>
-                                <form method=post action="{{ url_for('delete_file', type='audio', subpath=emotion, filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este audio de la carpeta {{ emotion }}?');">
-                                    <button type=submit>Eliminar</button>
-                                </form>
-                            </li>
-                        {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p style="margin-left: 15px; font-style: italic;">No hay audios en esta carpeta.</p>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        {% else %}
-            <p>No se encontraron carpetas de emociones o están vacías.</p>
-        {% endif %}
-    </div>
-
-</body>
-</html>
-"""
-
+# RUTA PRINCIPAL DE CARGA Y LISTADO
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
     if request.method == 'POST':
+        # --- Manejo de Carga de Archivos (para solicitudes AJAX) ---
         file = None
         upload_folder = None
         allowed_extensions = None
@@ -189,8 +82,9 @@ def upload_file():
             selected_emotion = request.form.get('emotion')
 
             if not selected_emotion or selected_emotion not in ALLOWED_EMOTION_FOLDERS:
-                flash(f'Emoción seleccionada inválida: "{selected_emotion}". Debe ser una de {", ".join(ALLOWED_EMOTION_FOLDERS)}.', 'error')
-                return redirect(request.url)
+                # Devolver JSON con error para la solicitud AJAX
+                logging.warning(f'Intento de subir audio con emoción inválida: "{selected_emotion}".')
+                return jsonify({'error': f'Emoción seleccionada inválida: "{selected_emotion}".'}), 400
 
             # Construir ruta a la subcarpeta de emoción
             emotion_folder_name = secure_filename(selected_emotion) # Asegurar nombre carpeta
@@ -206,46 +100,58 @@ def upload_file():
                      logging.info(f"Subcarpeta de audio creada al subir: {upload_folder}")
                  except OSError as e:
                      logging.error(f"Error al crear subcarpeta de audio {upload_folder}: {e}")
-                     flash(f"Error interno al preparar carpeta para emoción '{selected_emotion}'.", "error")
-                     return redirect(request.url)
+                     return jsonify({"error": f"Error interno al preparar carpeta para emoción '{selected_emotion}'."}), 500
+
 
         else:
-            # Manejar el caso donde no se envió ni video ni audio válido
-             if 'video' in request.files or 'audio' in request.files:
-                 # Se intentó subir algo pero el nombre estaba vacío
-                 flash('Ningún archivo seleccionado.', 'error')
-             else:
-                 # No se encontró ni 'video' ni 'audio' en request.files
-                 flash('No se envió ningún archivo (ni video ni audio).', 'error')
-             return redirect(request.url)
+            # Manejar el caso donde no se envió ni video ni audio válido (para AJAX)
+            error_message = 'Ningún archivo seleccionado o tipo de archivo no válido.'
+            if 'video' in request.files or 'audio' in request.files:
+                 error_message = 'Ningún archivo seleccionado.'
+            logging.warning(f"Intento de carga POST sin archivo válido. Mensaje: {error_message}")
+            return jsonify({'error': error_message}), 400
 
 
-        # Procesar el archivo seleccionado
+        # Procesar el archivo seleccionado (si existe y es permitido)
         if file and allowed_file(file.filename, allowed_extensions):
             filename = secure_filename(file.filename)
             filepath = os.path.join(upload_folder, filename)
 
             try:
+                # Comprobación de seguridad: No permitir rutas absolutas o travesías de directorio
+                # Aunque secure_filename ayuda, una verificación extra no hace daño.
+                # Realpath resuelve enlaces simbólicos, etc. Aseguramos que el destino esté dentro de la carpeta esperada.
+                abs_upload_folder = os.path.realpath(upload_folder)
+                abs_filepath_candidate = os.path.realpath(filepath)
+
+                if not os.path.isdir(abs_upload_folder) or not abs_filepath_candidate.startswith(abs_upload_folder):
+                     logging.warning(f"Intento de travesía de directorio detectado: {filename} -> {filepath} (Resuelto: {abs_filepath_candidate}, Carpeta destino: {abs_upload_folder})")
+                     return jsonify({'error': 'Ruta de archivo no permitida.'}), 400
+
+
                 file.save(filepath)
-                flash(f'{file_type} "{filename}" subido correctamente a {target_folder_relative_for_log}', 'success')
                 logging.info(f"{file_type} guardado en: {filepath}")
-                return redirect(url_for('upload_file')) # Redirige a GET
+                # Devolver JSON con éxito para la solicitud AJAX
+                return jsonify({'status': 'success', 'message': f'{file_type} "{filename}" subido correctamente a {target_folder_relative_for_log}'}), 200
             except Exception as e:
-                 flash(f'Error al guardar el archivo: {e}', 'error')
-                 logging.error(f"Error guardando archivo {filepath}: {e}")
-                 return redirect(request.url)
+                 logging.error(f"Error al guardar el archivo {filepath}: {e}")
+                 return jsonify({'error': f'Error al guardar el archivo: {e}'}), 500
         elif file: # Si hay archivo pero la extensión no es válida
-             flash(f'Tipo de archivo no permitido para {file_type}. Extensiones permitidas: {", ".join(allowed_extensions)}', 'error')
-             return redirect(request.url)
+             logging.warning(f"Intento de subir archivo con extensión no permitida: {file.filename}")
+             return jsonify({'error': f'Tipo de archivo no permitido para {file_type}. Extensiones permitidas: {", ".join(allowed_extensions)}'}), 400
         # El caso 'else' (no file) ya se cubrió antes
 
 
     # --- Método GET: Mostrar el formulario y la lista de archivos ---
+    # Obtener la lista de videos
     try:
         video_files = sorted([f for f in os.listdir(app.config['VIDEO_FOLDER']) if os.path.isfile(os.path.join(app.config['VIDEO_FOLDER'], f))])
     except Exception as e:
         logging.error(f"Error al listar videos en {app.config['VIDEO_FOLDER']}: {e}")
         video_files = []
+        # Añadir un flash message para informar al usuario si falla el listado GET
+        flash('Error al cargar la lista de videos.', 'error')
+
 
     # Listar audios por carpeta de emoción
     audio_files_by_emotion = {}
@@ -260,15 +166,20 @@ def upload_file():
             else:
                  # Si la carpeta no existe, registrarlo pero continuar
                  logging.warning(f"La subcarpeta de emoción '{emotion}' no existe en {app.config['AUDIO_FOLDER']}")
-                 audio_files_by_emotion[emotion] = [] # Mostrarla vacía
+                 audio_files_by_emotion[emotion] = [] # Mostrarla vacía en la interfaz
+
     except Exception as e:
         logging.error(f"Error al listar audios en {app.config['AUDIO_FOLDER']}: {e}")
         # Dejar audio_files_by_emotion como esté (posiblemente vacío o parcial)
+        # Añadir un flash message para informar al usuario si falla el listado GET
+        flash('Error al cargar la lista de audios.', 'error')
 
-    return render_template_string(HTML_TEMPLATE,
-                                videos=video_files,
-                                audio_files_by_emotion=audio_files_by_emotion,
-                                allowed_emotions=ALLOWED_EMOTION_FOLDERS)
+
+    # Renderizar la plantilla HTML
+    return render_template('upload.html',
+                           videos=video_files,
+                           audio_files_by_emotion=audio_files_by_emotion,
+                           allowed_emotions=ALLOWED_EMOTION_FOLDERS)
 
 
 # Ruta de eliminación modificada para manejar subpath (emoción para audio)
@@ -338,12 +249,15 @@ def delete_file(type, subpath, filename):
         flash(f'Error al eliminar el archivo "{filename}": {e}', 'error')
         logging.error(f"Error eliminando archivo {filepath}: {e}")
 
+    # Redirigir de vuelta a la página principal (ahora manejada por la ruta '/')
     return redirect(url_for('upload_file'))
 
 
 if __name__ == '__main__':
     print(f"Servidor de carga y gestión iniciado en http://0.0.0.0:{PORT}")
+    print(f" - Sirviendo templates desde: {TEMPLATES_FOLDER}")
     print(f" - Sirviendo videos desde: {VIDEO_FOLDER}")
     print(f" - Sirviendo audios desde: {AUDIO_FOLDER} (con subcarpetas de emoción)")
     # Ejecutar con debug=True puede ser útil para desarrollo, pero cámbialo a False para producción/autostart
-    app.run(host='0.0.0.0', port=PORT, debug=True)
+    # use_reloader=False puede ser necesario si tienes problemas con el reloader duplicando procesos
+    app.run(host='0.0.0.0', port=PORT, debug=True, use_reloader=False)

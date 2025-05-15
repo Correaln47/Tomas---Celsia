@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionar Archivos de Tomas</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 900px; margin: auto; background-color: #f0f0f0; }
+        h1, h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 30px; color: #333; }
+        .upload-section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 2px 2px 8px rgba(0,0,0,0.1); }
+        .upload-section h2 { margin-top: 0; border: none; padding-bottom: 0; color: #555; }
+        .file-list { list-style: none; padding-left: 0; }
+        .file-list li { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px dotted #eee; background-color: #f9f9f9; border-radius: 4px;}
+        .file-list li:nth-child(odd) { background-color: #fff; }
+        .file-list span { flex-grow: 1; margin-right: 10px; word-break: break-all; } /* Permite que el nombre largo se rompa */
+        .file-list form { display: inline; margin-left: 10px; }
+        .file-list button { background-color: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: background-color 0.2s; }
+        .file-list button:hover { background-color: #da190b; }
+        .flash { padding: 12px; margin-bottom: 15px; border-radius: 5px; font-weight: bold; }
+        .flash.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash.info { background-color: #cce5ff; color: #004085; border: 1px solid #b8daff; }
+
+        label { margin-right: 10px; font-weight: bold; color: #555;}
+        select, input[type=file] { padding: 8px; margin-right: 15px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type=submit] {
+            padding: 10px 20px;
+            background-color: #4CAF50; /* Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background-color 0.2s;
+        }
+         input[type=submit]:hover { background-color: #45a049; }
+
+        .emotion-group { margin-bottom: 20px; padding: 10px; border: 1px dashed #ccc; border-radius: 5px; background-color: #fafafa; }
+        .emotion-group .emotion-title { font-weight: bold; margin-bottom: 10px; color: #333; border-bottom: 1px dotted #eee; padding-bottom: 5px; }
+
+        .upload-progress-container {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none; /* Hidden by default */
+        }
+        .upload-progress-bar {
+            width: 0%;
+            height: 25px;
+            background-color: #4CAF50; /* Green */
+            text-align: center;
+            line-height: 25px;
+            color: white;
+            border-radius: 5px;
+            transition: width 0.3s ease; /* Smooth transition */
+        }
+        .upload-status-text {
+            margin-top: 10px;
+            font-size: 0.9em;
+            color: #555;
+            text-align: center;
+        }
+        .recommendation-box {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #a2c6ff; /* Light blue border */
+            border-radius: 5px;
+            background-color: #e9f4ff; /* Light blue background */
+            color: #0056b3; /* Darker blue text */
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .recommendation-box strong { color: #003366; }
+
+    </style>
+</head>
+<body>
+    <h1>Gestionar Archivos Multimedia de Tomas</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <div class="upload-section">
+        <h2>Subir Nuevo Video</h2>
+        <form id="uploadVideoForm" method=post enctype=multipart/form-data action="{{ url_for('upload_file') }}">
+          <input type=file name=video accept="video/*" required>
+          <input type=submit value="Subir Video">
+        </form>
+         <div class="upload-progress-container" id="videoProgressContainer">
+            <div class="upload-progress-bar" id="videoProgressBar">0%</div>
+        </div>
+        <div class="upload-status-text" id="videoStatusText"></div>
+         <div class="recommendation-box">
+             <strong>Recomendación de Video:</strong> Para mejor compatibilidad y rendimiento en la Raspberry Pi, se recomienda subir videos en formato <strong>MP4 (.mp4)</strong> con códec <strong>H.264</strong>. Intenta mantener las resoluciones bajas (ej: 640x480) si es posible.
+         </div>
+    </div>
+
+    <div class="upload-section">
+        <h2>Subir Nuevo Audio</h2>
+        <form id="uploadAudioForm" method=post enctype=multipart/form-data action="{{ url_for('upload_file') }}">
+          <label for="emotion">Emoción:</label>
+          <select name="emotion" id="emotion" required>
+              <option value="" disabled selected>-- Selecciona Emoción --</option>
+              {% for emotion in allowed_emotions %}
+              <option value="{{ emotion }}">{{ emotion.capitalize() }}</option>
+              {% endfor %}
+          </select>
+          <input type=file name=audio accept="audio/*" required>
+          <input type=submit value="Subir Audio">
+        </form>
+         <div class="upload-progress-container" id="audioProgressContainer">
+            <div class="upload-progress-bar" id="audioProgressBar">0%</div>
+        </div>
+        <div class="upload-status-text" id="audioStatusText"></div>
+        <div class="recommendation-box">
+            <strong>Recomendación de Audio:</strong> Se prefieren formatos de audio comunes como <strong>MP3 (.mp3)</strong> o <strong>WAV (.wav)</strong>. Asegúrate de que el audio sea claro y a un volumen adecuado.
+        </div>
+    </div>
+
+    <hr>
+
+    <div>
+        <h2>Archivos Actuales:</h2>
+        <div>
+            <h3>Videos (en static/video):</h3>
+            {% if videos %}
+                <ul class="file-list">
+                {% for filename in videos %}
+                    <li>
+                        <span>{{ filename }}</span>
+                        <form method=post action="{{ url_for('delete_file', type='video', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este video?');">
+                            <button type=submit>Eliminar</button>
+                        </form>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>No hay videos aún.</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3>Audios (en static/audio/...):</h3>
+            {% if audio_files_by_emotion %}
+                {% for emotion, files in audio_files_by_emotion.items() %}
+                    <div class="emotion-group">
+                        <div class="emotion-title">{{ emotion.capitalize() }}:</div>
+                        {% if files %}
+                            <ul class="file-list">
+                            {% for filename in files %}
+                                <li>
+                                    <span>{{ filename }}</span>
+                                    <form method=post action="{{ url_for('delete_file', type='audio', subpath=emotion, filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este audio de la carpeta {{ emotion }}?');">
+                                        <button type=submit>Eliminar</button>
+                                    </form>
+                                </li>
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p style="margin-left: 15px; font-style: italic;">No hay audios en esta carpeta.</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>No se encontraron carpetas de emociones o están vacías.</p>
+            {% endif %}
+        </div>
+    </div>
+
+     <script>
+         // Script para manejar la carga con barra de progreso (usando AJAX y FormData)
+         document.getElementById('uploadVideoForm').addEventListener('submit', function(e) {
+             e.preventDefault(); // Prevenir el envío tradicional del formulario
+             handleUpload(this, 'video');
+         });
+
+         document.getElementById('uploadAudioForm').addEventListener('submit', function(e) {
+             e.preventDefault(); // Prevenir el envío tradicional del formulario
+             handleUpload(this, 'audio');
+         });
+
+         function handleUpload(form, fileType) {
+             const fileInput = form.querySelector('input[type=file]');
+             const file = fileInput.files[0];
+             const submitButton = form.querySelector('input[type=submit]');
+             const progressBarContainer = document.getElementById(fileType + 'ProgressContainer');
+             const progressBar = document.getElementById(fileType + 'ProgressBar');
+             const statusText = document.getElementById(fileType + 'StatusText');
+
+             if (!file) {
+                 statusText.innerText = "Por favor, selecciona un archivo para subir.";
+                 statusText.style.color = '#dc3545'; // Rojo
+                 return;
+             }
+
+             const formData = new FormData(form); // Crea FormData con los datos del formulario
+
+             // Mostrar barra de progreso y texto de estado inicial
+             progressBarContainer.style.display = 'block';
+             progressBar.style.width = '0%';
+             progressBar.innerText = '0%';
+             statusText.innerText = `Subiendo ${file.name}...`;
+             statusText.style.color = '#555';
+             submitButton.disabled = true; // Deshabilitar botón durante la carga
+
+             const xhr = new XMLHttpRequest();
+
+             // Evento de progreso
+             xhr.upload.addEventListener('progress', function(e) {
+                 if (e.lengthComputable) {
+                     const percent = (e.loaded / e.total) * 100;
+                     progressBar.style.width = percent.toFixed(0) + '%';
+                     progressBar.innerText = percent.toFixed(0) + '%';
+
+                     // Opcional: Calcular tiempo estimado (simplificado)
+                     // Esto requiere más lógica para ser preciso, solo se muestra como placeholder
+                     statusText.innerText = `Subiendo ${file.name}... (${(e.loaded / 1024 / 1024).toFixed(1)} MB de ${(e.total / 1024 / 1024).toFixed(1)} MB)`;
+                 }
+             });
+
+             // Evento de carga completada
+             xhr.addEventListener('load', function() {
+                 submitButton.disabled = false; // Habilitar botón
+                 progressBarContainer.style.display = 'none'; // Ocultar barra de progreso
+
+                 if (xhr.status >= 200 && xhr.status < 300) {
+                     // Carga exitosa
+                     const response = JSON.parse(xhr.responseText);
+                     statusText.innerText = `¡${file.name} subido con éxito!`;
+                     statusText.style.color = '#28a745'; // Verde
+
+                     // Opcional: Recargar la lista de archivos después de un pequeño retraso
+                     setTimeout(() => {
+                        window.location.reload(); // Recarga la página para mostrar la lista actualizada
+                     }, 1500); // Esperar 1.5 segundos antes de recargar
+
+                 } else {
+                     // Error en la carga
+                     const response = JSON.parse(xhr.responseText);
+                     statusText.innerText = `Error al subir ${file.name}: ${response.error || 'Error desconocido'}`;
+                     statusText.style.color = '#dc3545'; // Rojo
+                 }
+             });
+
+             // Evento de error en la solicitud
+             xhr.addEventListener('error', function() {
+                 submitButton.disabled = false; // Habilitar botón
+                 progressBarContainer.style.display = 'none'; // Ocultar barra de progreso
+                 statusText.innerText = `Error de conexión al subir ${file.name}.`;
+                 statusText.style.color = '#dc3545'; // Rojo
+             });
+
+             // Enviar la solicitud AJAX
+             xhr.open('POST', form.action);
+             xhr.send(formData);
+
+              // Limpiar el input de archivo después de enviar (opcional)
+              fileInput.value = '';
+         }
+     </script>
+</body>
+</html>
