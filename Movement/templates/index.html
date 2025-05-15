@@ -10,27 +10,71 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
+      padding: 20px; 
+      box-sizing: border-box; 
       background: #f0f0f0;
-      /* Evitar selección de texto en botones en móvil */
-      -webkit-user-select: none; /* Safari */
-      -ms-user-select: none; /* IE 10+ */
-      user-select: none; /* Standard syntax */
+      -webkit-user-select: none; 
+      -ms-user-select: none; 
+      user-select: none; 
     }
+    .main-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 500px; 
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+    .robot-orientation {
+      width: 120px; 
+      height: auto;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .robot-body {
+      width: 80px; 
+      height: 120px; 
+      background-color: #777; 
+      border: 2px solid #555;
+      border-radius: 10px;
+      position: relative; 
+      margin: 0 auto; 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start; /* Alinea la flecha arriba */
+      padding-top: 10px; /* Espacio para la flecha */
+      box-sizing: border-box;
+    }
+    .robot-body .arrow-up { 
+      font-size: 30px;
+      color: white;
+      line-height: 1;
+    }
+    .robot-front-text {
+        font-size: 0.9em;
+        color: white;
+        margin-top: 10px; 
+    }
+
     .control-grid {
       display: grid;
       grid-template-areas:
         ". forward ."
         "left stop right"
         ". backward .";
-      gap: 15px; /* Espacio entre botones */
-      margin-bottom: 30px;
+      gap: 15px;
+      margin-bottom: 25px;
     }
     .control-button {
-      width: 100px;
-      height: 100px;
-      font-size: 20px;
+      width: 90px; 
+      height: 90px;
+      font-size: 18px;
       font-weight: bold;
       border: 2px solid #555;
       border-radius: 15px;
@@ -44,7 +88,7 @@
     }
     .control-button:active {
       background-color: #bbb;
-      transform: scale(0.95); /* Efecto de presión */
+      transform: scale(0.95);
     }
     #button-forward { grid-area: forward; background-color: #aae8aa;}
     #button-backward { grid-area: backward; background-color: #aae8aa;}
@@ -52,33 +96,145 @@
     #button-right { grid-area: right; background-color: #aae8aa;}
     #button-stop {
       grid-area: stop;
-      background-color: #e8aaaa; /* Rojo para parar */
-      width: 80px; /* Más pequeño */
-      height: 80px;
-      align-self: center; /* Centrar verticalmente */
-      justify-self: center; /* Centrar horizontalmente */
+      background-color: #e8aaaa;
+      width: 70px;
+      height: 70px;
+      align-self: center;
+      justify-self: center;
      }
-     /* Añadir iconos simples (opcional) */
-     #button-forward::before { content: '▲'; font-size: 30px; }
-     #button-backward::before { content: '▼'; font-size: 30px; }
-     #button-left::before { content: '◄'; font-size: 30px; }
-     #button-right::before { content: '►'; font-size: 30px; }
-     #button-stop::before { content: '■'; font-size: 30px; }
+    #button-forward::before { content: '▲'; font-size: 28px; }
+    #button-backward::before { content: '▼'; font-size: 28px; }
+    #button-left::before { content: '◄'; font-size: 28px; }
+    #button-right::before { content: '►'; font-size: 28px; }
+    #button-stop::before { content: '■'; font-size: 28px; }
 
-     h2 {
-       margin-bottom: 40px;
-     }
+    .info-text {
+      font-size: 0.9em;
+      color: #555;
+      text-align: center;
+      padding: 10px;
+      background-color: #e9e9e9;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      max-width: 90%;
+    }
+
+    .video-controls {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px;
+      background-color: #e0e0e0;
+      border-radius: 5px;
+    }
+     .video-controls h3 {
+        margin-top: 0;
+        margin-bottom: 15px;
+        color: #333;
+    }
+    .video-controls > div { /* Estilo para el div que contiene label y select */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        max-width: 350px; /* Ancho máximo para el selector y etiqueta */
+        margin-bottom: 10px;
+    }
+    .video-controls label {
+        margin-right: 10px;
+        font-size: 0.95em;
+    }
+    .video-controls select {
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+        flex-grow: 1; /* Para que el select ocupe el espacio disponible */
+    }
+    .video-controls button {
+      padding: 10px 15px;
+      font-size: 1em;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      min-width: 220px; /* Ancho mínimo para los botones */
+    }
+    #button-play-video {
+      background-color: #4CAF50; /* Verde */
+    }
+    #button-play-video:hover {
+      background-color: #45a049;
+    }
+    #button-skip-video {
+      background-color: #f44336; /* Rojo */
+    }
+    #button-skip-video:hover {
+      background-color: #da190b;
+    }
+
+    @media (max-width: 400px) {
+        .control-button {
+            width: 75px;
+            height: 75px;
+            font-size: 16px;
+        }
+        #button-stop {
+            width: 60px;
+            height: 60px;
+        }
+        .robot-orientation {
+            width: 100px;
+        }
+        .robot-body {
+            width: 70px;
+            height: 100px;
+        }
+        .robot-body .arrow-up { font-size: 24px; }
+        .video-controls button {
+            min-width: 180px;
+        }
+    }
   </style>
 </head>
 <body>
-  <h2>Control del Robot</h2>
+  <div class="main-container">
+    <h2>Control del Robot</h2>
 
-  <div class="control-grid">
-    <button class="control-button" id="button-forward"></button>
-    <button class="control-button" id="button-left"></button>
-    <button class="control-button" id="button-stop"></button>
-    <button class="control-button" id="button-right"></button>
-    <button class="control-button" id="button-backward"></button>
+    <div class="robot-orientation">
+      <div class="robot-body">
+        <span class="arrow-up">▲</span>
+        <span class="robot-front-text">FRENTE</span>
+      </div>
+    </div>
+
+    <div class="control-grid">
+      <button class="control-button" id="button-forward" aria-label="Adelante"></button>
+      <button class="control-button" id="button-left" aria-label="Izquierda"></button>
+      <button class="control-button" id="button-stop" aria-label="Detener"></button>
+      <button class="control-button" id="button-right" aria-label="Derecha"></button>
+      <button class="control-button" id="button-backward" aria-label="Atrás"></button>
+    </div>
+
+    <div class="info-text">
+      <p>La flecha ▲ en el control de arriba indica el frente del robot. Presione los botones de dirección para mover el robot con respecto a su orientación.</p>
+      <p><strong>Importante:</strong> Si se presionan dos botones de movimiento simultáneamente, solo se registrará el primero que se toque. Para un funcionamiento óptimo, presione solo un botón a la vez.</p>
+    </div>
+
+    <div class="video-controls">
+      <h3>Control de Video Interactivo</h3>
+      <div>
+          <label for="video-select">Seleccionar Video:</label>
+          <select id="video-select" name="video-select">
+              <option value="">Cargando videos...</option>
+          </select>
+      </div>
+      <button id="button-play-video">▶️ Iniciar Video Seleccionado</button>
+      <button id="button-skip-video">⏭️ Saltar Video Actual / Reiniciar</button>
+    </div>
   </div>
 
   <script>
@@ -90,70 +246,146 @@
         stop: document.getElementById('button-stop')
     };
 
-    // Función para enviar comandos al backend
-    function sendCommand(command) {
-      console.log("Sending command:", command); // Log para depuración
-      fetch("/control", { // Asegúrate que la ruta coincida con Flask
+    const videoSelect = document.getElementById('video-select');
+    const playVideoButton = document.getElementById('button-play-video');
+    const skipVideoButton = document.getElementById('button-skip-video');
+
+    const mainAppUrl = `http://${window.location.hostname}:5000`; // Asume app.py en puerto 5000
+
+    function sendMoveCommand(command) {
+      fetch("/control", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: command })
       })
-      .then(response => response.json())
-      .then(data => console.log("Response:", data))
-      .catch(error => console.error("Error:", error));
+      .then(response => {
+        if (!response.ok) console.error("Move command failed with status: " + response.status);
+        return response.json();
+      })
+      .then(data => console.log("Move response:", data))
+      .catch(error => console.error("Error sending move command:", error));
     }
 
-    // Función para enviar el comando de parada
-    function sendStop() {
-      console.log("Sending command: stop"); // Log para depuración
-      fetch("/stop", { // Ruta específica para detener
+    function sendStopCommand() {
+      fetch("/stop", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}) // No necesita cuerpo, pero se puede enviar vacío
+        body: JSON.stringify({})
       })
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) console.error("Stop command failed with status: " + response.status);
+        return response.json();
+      })
       .then(data => console.log("Stop Response:", data))
       .catch(error => console.error("Error stopping:", error));
     }
 
-    // --- Event Listeners para botones direccionales ---
-    // Usamos mousedown/touchstart para iniciar el movimiento
-    // Usamos mouseup/touchend/mouseleave para detener el movimiento
-
     ['forward', 'backward', 'left', 'right'].forEach(direction => {
       const button = buttons[direction];
       if (button) {
-        // Iniciar movimiento al presionar
-        button.addEventListener('mousedown', () => sendCommand(direction));
+        const startEvent = () => sendMoveCommand(direction);
+        // Touchstart y Mousedown para iniciar
+        button.addEventListener('mousedown', startEvent);
         button.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Prevenir eventos de mouse duplicados en táctil
-            sendCommand(direction);
-        }, { passive: false }); // Necesario para preventDefault
+            e.preventDefault(); 
+            startEvent();
+        }, { passive: false });
 
-        // Detener movimiento al soltar o salir del botón
-        button.addEventListener('mouseup', sendStop);
-        button.addEventListener('mouseleave', sendStop); // Detener si el cursor sale del botón mientras está presionado
+        // Mouseup, Touchend, Mouseleave, Touchcancel para detener
+        button.addEventListener('mouseup', sendStopCommand);
+        button.addEventListener('mouseleave', sendStopCommand); 
         button.addEventListener('touchend', (e) => {
              e.preventDefault();
-             sendStop();
+             sendStopCommand();
         });
-        button.addEventListener('touchcancel', (e) => { // Por si la interacción táctil se cancela
+        button.addEventListener('touchcancel', (e) => { 
              e.preventDefault();
-             sendStop();
+             sendStopCommand();
         });
       }
     });
 
-    // --- Event Listener para el botón STOP ---
-    // Click normal o toque para detener
     if (buttons.stop) {
-        buttons.stop.addEventListener('click', sendStop);
+        buttons.stop.addEventListener('click', sendStopCommand);
         buttons.stop.addEventListener('touchstart', (e) => {
-            e.preventDefault(); // Prevenir click fantasma
-            sendStop();
+            e.preventDefault(); 
+            sendStopCommand();
         }, { passive: false });
     }
 
+    async function fetchVideoList() {
+        try {
+            const response = await fetch(`${mainAppUrl}/list_videos`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            videoSelect.innerHTML = '<option value="">-- Selecciona un video --</option>'; 
+            if (data.videos && data.videos.length > 0) {
+                data.videos.forEach(videoFile => {
+                    const option = document.createElement('option');
+                    option.value = videoFile; // El valor será el nombre del archivo
+                    option.textContent = videoFile.split('.')[0].replace(/_/g, ' ').replace(/-/g, ' '); // Nombre más legible
+                    videoSelect.appendChild(option);
+                });
+            } else {
+                videoSelect.innerHTML = '<option value="">No hay videos disponibles</option>';
+            }
+        } catch (error) {
+            console.error("Error fetching video list:", error);
+            videoSelect.innerHTML = '<option value="">Error al cargar videos</option>';
+        }
+    }
+
+    async function playSelectedVideo() {
+        const selectedVideoFile = videoSelect.value;
+        if (!selectedVideoFile) {
+            alert("Por favor, selecciona un video de la lista.");
+            return;
+        }
+        console.log("Requesting to play video:", selectedVideoFile);
+        try {
+            const response = await fetch(`${mainAppUrl}/play_specific_video`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ video_file: selectedVideoFile })
+            });
+            const data = await response.json();
+            console.log("Play video response:", data);
+            if(data.status === "ok" || data.message) {
+                 alert(data.message || `Solicitud para reproducir ${selectedVideoFile} enviada.`);
+            } else {
+                alert(data.error || "Error al intentar reproducir el video.");
+            }
+        } catch (error) {
+            console.error("Error playing selected video:", error);
+            alert("Error de comunicación al intentar reproducir el video.");
+        }
+    }
+
+    async function skipCurrentVideo() {
+        console.log("Requesting to skip video / restart interaction");
+        try {
+            const response = await fetch(`${mainAppUrl}/restart`); 
+            const data = await response.json();
+            console.log("Skip video response:", data);
+            alert("Señal de reinicio enviada. La interacción principal debería recomenzar.");
+        } catch (error) {
+            console.error("Error skipping video:", error);
+            alert("Error de comunicación al intentar saltar el video.");
+        }
+    }
+
+    if (playVideoButton) {
+        playVideoButton.addEventListener('click', playSelectedVideo);
+    }
+    if (skipVideoButton) {
+        skipVideoButton.addEventListener('click', skipCurrentVideo);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchVideoList();
+    });
   </script>
 </body>
 </html>
