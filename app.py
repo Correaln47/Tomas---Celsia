@@ -24,6 +24,8 @@ buffer_window = 4 # Ventana de tiempo en segundos para el buffer de emociones
 threshold_ratio = 0.6 # Ratio mínimo de la emoción dominante en el buffer para considerarla estable
 min_count = 5 # Cantidad mínima de detecciones en el buffer para considerar la estabilización
 forced_video_to_play = None # Guarda el nombre del video a forzar desde la interfaz de control
+restart_requested = False # Nuevo flag para indicar que se solicitó un reinicio/skip desde otra interfaz
+
 
 # --- Asegurarse de que la ruta del cascade classifier sea correcta ---
 # cv2.data.haarcascades es la ubicación predeterminada de OpenCV para estos archivos
@@ -160,7 +162,9 @@ def detection_loop():
     while True:
         # Si hay un video forzado reproduciéndose, la detección se pausa o ignora
         # El frontend maneja la reproducción del video forzado
-        if forced_video_to_play:
+        # La detección también se pausa si se ha solicitado un reinicio, para evitar
+        # que una detección se complete justo antes de que se reinicie la UI.
+        if forced_video_to_play or restart_requested:
             # Podrías opcionalmente mostrar un frame estático o negro aquí
             # para el stream si no quieres congelar el último frame de la cámara
             # Por ahora, simplemente espera para no consumir CPU innecesariamente
@@ -193,7 +197,8 @@ def detection_loop():
         current_time_loop = time.time()
         processed_frame_for_stream = frame.copy() # Copia para el stream
 
-        # Procesar detección solo si no está completa y ha pasado el intervalo
+        # Procesar detección solo si no está completa, no hay video forzado, no hay reinicio solicitado
+        # y ha pasado el intervalo, y el cascade classifier cargó.
         if face_cascade is not None and not detection_complete and (current_time_loop - last_detection_time > detection_processing_interval):
             last_detection_time = current_time_loop
 
@@ -328,7 +333,7 @@ def gen_video():
 @app.route('/')
 def route_index():
     """Ruta principal que sirve la interfaz de interacción."""
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_start_time, emotion_buffer
+    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_start_time, emotion_buffer, restart_requested
     print("Route /: Resetting state for new session.")
     # Resetear el estado al cargar la página principal
     detection_complete = False
@@ -338,6 +343,7 @@ def route_index():
     emotion_start_time = None
     emotion_buffer.clear()
     forced_video_to_play = None # Asegurar que no haya video forzado al inicio de la interacción
+    restart_requested = False # Asegurar que el flag de reinicio esté false al inicio
 
     return render_template('index.html')
 
@@ -358,11 +364,12 @@ def video_feed_route():
 @app.route('/detection_status')
 def detection_status_route():
     """Ruta para que el frontend consulte el estado de detección."""
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot
+    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, restart_requested
 
     status_data = {
         "detected": detection_complete,
         "emotion": detected_emotion,
+        "restart_requested": restart_requested # Incluir el nuevo flag de reinicio
         # No envíamos el snapshot aquí directamente, se pide por separado si detected es True
     }
 
@@ -372,6 +379,12 @@ def detection_status_route():
         status_data["forced_video"] = video_to_send_now
         print(f"API /detection_status: Sending forced_video: {video_to_send_now} & resetting flag.")
         forced_video_to_play = None # Resetear la bandera después de enviarla
+
+    # Resetear el flag de reinicio *después* de que el frontend lo haya leído
+    if restart_requested:
+         print("API /detection_status: Restart flag sent. Resetting restart_requested.")
+         restart_requested = False
+
 
     # Después de enviar el estado de detección completa/emoción,
     # reiniciamos las variables relevantes para permitir una nueva detección.
@@ -495,7 +508,7 @@ def list_videos_route():
 @app.route('/play_specific_video', methods=['POST'])
 def play_specific_video_route():
     """Ruta para forzar la reproducción de un video específico (usado por la interfaz de control)."""
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer
+    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer, restart_requested
 
     data = request.json
     if not data or 'video_file' not in data:
@@ -523,6 +536,7 @@ def play_specific_video_route():
     last_emotion = None
     emotion_buffer.clear()
     forced_video_to_play = safe_video_file # Establecer el video forzado
+    restart_requested = False # Asegurarse de que el flag de reinicio esté false
 
     print(f"API /play_specific_video: forced_video_to_play SET TO: {forced_video_to_play}")
 
@@ -531,9 +545,9 @@ def play_specific_video_route():
 @app.route('/restart')
 def restart_route():
     """Ruta para reiniciar el estado de la aplicación principal (usado por la interfaz de control)."""
-    global detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer, forced_video_to_play
+    global detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer, forced_video_to_play, restart_requested
 
-    print("API /restart: Received restart request. Resetting application state.")
+    print("API /restart: Received restart request. Setting restart_requested flag and resetting state.")
 
     # Resetear todas las variables de estado relevante
     detection_complete = False
@@ -542,10 +556,11 @@ def restart_route():
     last_emotion = None
     emotion_buffer.clear() # Limpiar el buffer de emociones
     forced_video_to_play = None # Asegurarse de que no haya video forzado
+    restart_requested = True # **Establecer el nuevo flag de reinicio**
 
-    print("API /restart: Application state reset.")
+    print("API /restart: Application state reset and restart_requested set.")
 
-    return jsonify({"status": "restarted", "message": "Application state has been reset."})
+    return jsonify({"status": "restarted", "message": "Application state has been reset. Restart flag set."})
 
 
 if __name__ == '__main__':

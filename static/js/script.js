@@ -82,49 +82,44 @@ document.addEventListener("DOMContentLoaded", function() {
             .then(res => {
                 if (!res.ok) {
                     console.error(`JS: HTTP error! status: ${res.status}`);
-                    currentEmotion = "neutral"; // Asumir neutral en caso de error HTTP
-                    // Si la cámara no está disponible o hay un error del servidor,
-                    // podemos querer mostrar un estado de error o el placeholder.
-                    // Por ahora, simplemente logueamos y devolvemos null.
+                    currentEmotion = "neutral";
+                    if (videoContainer.style.display !== "flex") {
+                         document.getElementById('main-container').style.display = "flex";
+                         videoContainer.style.display = "none";
+                         videoFeed.style.display = "block";
+                         snapshotContainer.style.display = "none";
+                         emotionText.innerText = "Error de conexión..."; // Indicador de problema
+                         drawFace("neutral", "neutral", 0);
+                    }
                     return null;
                 }
                 return res.json();
             })
             .then(data => {
                 if (data === null) {
-                    // No procesar si hubo un error HTTP
-                    // Asegurarse de que la interfaz vuelva al feed de video o placeholder si hay un error persistente
-                    if (videoContainer.style.display !== "flex") { // Si no estamos mostrando el video grande
-                         document.getElementById('main-container').style.display = "flex";
-                         videoContainer.style.display = "none";
-                         videoFeed.style.display = "block"; // Mostrar el feed de video (o placeholder si app.py lo sirve)
-                         snapshotContainer.style.display = "none";
-                         emotionText.innerText = "Esperando cámara..."; // Mensaje de estado si deseas
-                         drawFace("neutral", "neutral", 0);
-                    }
-                    return;
+                    return; // No procesar si hubo un error HTTP
                 }
+
+                // --- Lógica para manejar el "skip video" desde otra interfaz (usando restart_requested) ---
+                // Si el flag restart_requested es true Y actualmente se está reproduciendo un video
+                if (data.restart_requested && interactionVideo && interactionVideo.paused === false) {
+                     console.log("JS: Restart requested from server while video playing. Stopping video and restarting interaction.");
+                     restartInteraction(); // Detiene el video actual y reinicia la página
+                     return; // Ya hemos manejado el reinicio
+                }
+
 
                 // --- Lógica para manejar video forzado (prioridad alta) ---
                 if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
                     currentForcedVideoProcessed = data.forced_video;
                     console.log("JS: FORCED VIDEO received:", data.forced_video);
 
-                    // Ocultar la interfaz de detección y mostrar el contenedor de video
                     document.getElementById('main-container').style.display = "none";
                     videoContainer.style.display = "flex";
 
                     const videoUrl = `/static/video/${data.forced_video}`;
                     playSpecificVideo(videoUrl);
                     return; // Ya estamos manejando un video forzado
-                }
-
-                // --- Lógica para manejar el "skip video" desde otra interfaz ---
-                // Si el video está reproduciéndose Y el estado de detección en el servidor es false
-                if (interactionVideo && interactionVideo.paused === false && !data.detected) {
-                     console.log("JS: Detection status reset while video playing. Stopping video and restarting interaction.");
-                     restartInteraction();
-                     return; // Ya hemos manejado el reinicio
                 }
 
 
@@ -134,18 +129,14 @@ document.addEventListener("DOMContentLoaded", function() {
                         currentEmotion = data.emotion;
                         console.log("JS: DETECTION complete. Emotion:", currentEmotion);
 
-                        // Ocultar el feed de video en vivo y mostrar el snapshot y texto de emoción
                         videoFeed.style.display = "none";
                         snapshotContainer.style.display = "block";
 
-                        // Actualizar la imagen del snapshot (añadir timestamp para evitar caché)
                         snapshotImg.src = "/snapshot?" + new Date().getTime();
                         emotionText.innerText = "Emoción: " + currentEmotion.toUpperCase();
 
                         drawFace(currentEmotion, currentEmotion, 0);
 
-                        // Disparar la reproducción del audio y luego el video aleatorio
-                        // Solo si no hay audio sonando y no hay video reproduciendo
                         if (!isAudioPlaying && interactionVideo.paused !== false) {
                             console.log("JS: Triggering audio based on detection.");
                             triggerAudio(currentEmotion);
@@ -153,19 +144,18 @@ document.addEventListener("DOMContentLoaded", function() {
                             console.log("JS: Audio/Video already playing or forced video pending, skipping triggerAudio/triggerVideo.");
                         }
 
-                    } else { // Si la detección en el servidor NO está completa o se ha reiniciado
+                    } else { // Si la detección en el servidor NO está completa
                          currentEmotion = "neutral";
-                         console.log("JS: Detection not complete, restoring main UI to video feed.");
-
-                         // --- CORRECCIÓN AQUÍ: Asegurarse de que la UI muestre el feed de video ---
-                         document.getElementById('main-container').style.display = "flex"; // Mostrar el contenedor principal
-                         videoContainer.style.display = "none"; // Asegurarse de que el contenedor del video grande esté oculto
-                         videoFeed.style.display = "block";    // Mostrar el feed de video en vivo
-                         snapshotContainer.style.display = "none"; // Ocultar el snapshot
-                         emotionText.innerText = ""; // Limpiar texto de emoción
-                         drawFace("neutral", "neutral", 0); // Dibujar cara neutral
-                         // --- FIN CORRECCIÓN ---
-
+                         // Solo restaurar la UI al feed de video si no estamos mostrando ya un video grande
+                         if (videoContainer.style.display !== "flex") {
+                             console.log("JS: Detection not complete, restoring main UI to video feed.");
+                             document.getElementById('main-container').style.display = "flex";
+                             videoContainer.style.display = "none";
+                             videoFeed.style.display = "block";
+                             snapshotContainer.style.display = "none";
+                             emotionText.innerText = "";
+                             drawFace("neutral", "neutral", 0);
+                         }
                     }
                 } else {
                      console.log("JS: Processing forced video, skipping normal detection logic.");
@@ -175,7 +165,14 @@ document.addEventListener("DOMContentLoaded", function() {
             .catch(err => {
                 console.error("JS: Error polling detection status:", err);
                 currentEmotion = "neutral";
-                // El setInterval continuará intentándolo.
+                 if (videoContainer.style.display !== "flex") { // Si no estamos mostrando el video grande
+                     document.getElementById('main-container').style.display = "flex";
+                     videoContainer.style.display = "none";
+                     videoFeed.style.display = "block";
+                     snapshotContainer.style.display = "none";
+                     emotionText.innerText = "Error de comunicación..."; // Indicador de problema
+                     drawFace("neutral", "neutral", 0);
+                 }
             });
     }
 
