@@ -6,26 +6,27 @@
     <link rel="stylesheet" href="/static/css/style.css">
   </head>
   <body>
-    <!-- Main interface container -->
     <div id="main-container">
-      <!-- Live video feed -->
+      <canvas id="faceCanvas" width="800" height="600"></canvas>
+
       <img id="videoFeed" src="/video_feed" alt="Live Video Feed">
-      
-      <!-- Snapshot container (shown when detection is complete) -->
+
       <div id="snapshot-container" style="display:none;">
         <img id="snapshot" src="/snapshot" alt="Detected Snapshot">
         <p id="emotionText"></p>
       </div>
-      
-      <!-- Canvas for animated face -->
-      <canvas id="faceCanvas" width="800" height="600"></canvas>
+
+      <div class="power-button-comment">
+        <p>Botón de apagado <br> (detrás del robot)</p>
+        <div class="arrow">⬇️</div>
+      </div>
+
     </div>
-    
-    <!-- Video container (placed outside main-container) -->
+
     <div id="video-container">
       <video id="interactionVideo" controls autoplay></video>
     </div>
-    
+
     <script src="/static/js/script.js"></script>
   </body>
 </html>
