@@ -6,126 +6,44 @@
     <title>Subir Rostro Conocido</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Puedes añadir estilos específicos para esta página aquí si es necesario,
-           o mantenerlos en style.css como ya se hizo con .upload-container */
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .message.success {
+            background-color: #dff0d8;
+            color: #3c763d;
+            border: 1px solid #d6e9c6;
+        }
+        .message.error {
+            background-color: #f2dede;
+            color: #a94442;
+            border: 1px solid #ebccd1;
+        }
     </style>
 </head>
 <body>
     <div class="upload-container">
         <h2>Subir Nueva Cara Conocida</h2>
-        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+
+        {% if message %}
+            <div class="message {{ message_type }}">{{ message }}</div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('upload_page') }}">
             <div>
                 <label for="name">Nombre de la Persona:</label>
                 <input type="text" id="name" name="name" required>
             </div>
             <div>
-                <label for="file">Archivo de Imagen (jpg, png):</label>
+                <label for="file">Archivo de Imagen (jpg, png, jpeg):</label>
                 <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
             </div>
             <input type="submit" value="Subir Imagen">
         </form>
-        <div id="messageArea" class="message" style="display:none;"></div>
-        <a href="{{ url_for('index') }}" class="back-link">&larr; Volver a la Interfaz Principal</a>
+        <a href="{{ url_for('index') }}" class="back-link" style="margin-top: 20px; display: inline-block;">&larr; Volver a la Interfaz Principal</a>
     </div>
-
-    <script>
-        document.getElementById('uploadForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevenir el envío tradicional del formulario
-
-            const formData = new FormData(this);
-            const messageArea = document.getElementById('messageArea');
-
-            fetch("{{ url_for('upload_file_route') }}", { // Asegúrate que esta es la ruta correcta
-                method: 'POST',
-                body: formData,
-            })
-            .then(response => response.json())
-            .then(data => {
-                messageArea.style.display = 'block';
-                if (data.success) {
-                    messageArea.textContent = data.success;
-                    messageArea.className = 'message success';
-                    document.getElementById('uploadForm').reset(); // Limpiar formulario
-                } else if (data.error) {
-                    messageArea.textContent = 'Error: ' + data.error;
-                    messageArea.className = 'message error';
-                } else {
-                    messageArea.textContent = 'Respuesta inesperada del servidor.';
-                    messageArea.className = 'message error';
-                }
-            })
-            .catch(error => {
-                console.error('Error en la subida:', error);
-                messageArea.style.display = 'block';
-                messageArea.textContent = 'Error de red o del servidor al subir el archivo.';
-                messageArea.className = 'message error';
-            });
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subir Rostro Conocido</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        /* Puedes añadir estilos específicos para esta página aquí si es necesario,
-           o mantenerlos en style.css como ya se hizo con .upload-container */
-    </style>
-</head>
-<body>
-    <div class="upload-container">
-        <h2>Subir Nueva Cara Conocida</h2>
-        <form id="uploadForm" method="POST" enctype="multipart/form-data">
-            <div>
-                <label for="name">Nombre de la Persona:</label>
-                <input type="text" id="name" name="name" required>
-            </div>
-            <div>
-                <label for="file">Archivo de Imagen (jpg, png):</label>
-                <input type="file" id="file" name="file" accept=".jpg, .jpeg, .png" required>
-            </div>
-            <input type="submit" value="Subir Imagen">
-        </form>
-        <div id="messageArea" class="message" style="display:none;"></div>
-        <a href="{{ url_for('index') }}" class="back-link">&larr; Volver a la Interfaz Principal</a>
-    </div>
-
-    <script>
-        document.getElementById('uploadForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Prevenir el envío tradicional del formulario
-
-            const formData = new FormData(this);
-            const messageArea = document.getElementById('messageArea');
-
-            fetch("{{ url_for('upload_file_route') }}", { // Asegúrate que esta es la ruta correcta
-                method: 'POST',
-                body: formData,
-            })
-            .then(response => response.json())
-            .then(data => {
-                messageArea.style.display = 'block';
-                if (data.success) {
-                    messageArea.textContent = data.success;
-                    messageArea.className = 'message success';
-                    document.getElementById('uploadForm').reset(); // Limpiar formulario
-                } else if (data.error) {
-                    messageArea.textContent = 'Error: ' + data.error;
-                    messageArea.className = 'message error';
-                } else {
-                    messageArea.textContent = 'Respuesta inesperada del servidor.';
-                    messageArea.className = 'message error';
-                }
-            })
-            .catch(error => {
-                console.error('Error en la subida:', error);
-                messageArea.style.display = 'block';
-                messageArea.textContent = 'Error de red o del servidor al subir el archivo.';
-                messageArea.className = 'message error';
-            });
-        });
-    </script>
 </body>
 </html>
