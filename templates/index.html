@@ -1,32 +1,57 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
+<html lang="es">
+<head>
     <meta charset="UTF-8">
-    <title>Emotion Interaction</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-  </head>
-  <body>
-    <div id="main-container">
-      <canvas id="faceCanvas" width="800" height="600"></canvas>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robot Interactivo Tomi</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Robot Interactivo Tomi</h1>
+        </header>
 
-      <img id="videoFeed" src="/video_feed" alt="Live Video Feed">
+        <div class="video-and-mouth-container">
+            <div class="video-wrapper">
+                <img id="video_feed" src="{{ url_for('static', filename='img/placeholder.png') }}" alt="Video Stream">
+                <canvas id="mouthCanvas"></canvas>
+            </div>
+            <video id="videoPlayer" controls style="display:none; width: 100%; margin-top:10px;">
+                <source id="videoSource" src="" type="video/mp4">
+                Tu navegador no soporta el elemento de video.
+            </video>
+        </div>
 
-      <div id="snapshot-container" style="display:none;">
-        <img id="snapshot" src="/snapshot" alt="Detected Snapshot">
-        <p id="emotionText"></p>
-      </div>
+        <div class="info-panel">
+            <p id="recognizedFaceText">Esperando reconocimiento...</p>
+            <p id="expressionText"></p>
+        </div>
 
-      <div class="power-button-comment">
-        <p>Botón de apagado <br> (detrás del robot)</p>
-        <div class="arrow">⬇️</div>
-      </div>
+        <div class="info-item">
+            <img src="{{ url_for('static', filename='img/info_icon.png') }}" alt="Info" class="info-icon">
+            <span>Este es un texto de guía importante.</span>
+        </div>
+         <div class="info-item">
+            <img src="{{ url_for('static', filename='img/another_icon.png') }}" alt="Guía" class="info-icon">
+            <span>Recuerda mirar a la cámara para el reconocimiento.</span>
+        </div>
 
+        <div class="controls">
+            <button id="startRecognitionBtn">Iniciar Reconocimiento</button>
+            <button id="stopRecognitionBtn">Detener Reconocimiento</button>
+            <button id="uploadPageBtn">Subir Rostros</button>
+        </div>
     </div>
 
-    <div id="video-container">
-      <video id="interactionVideo" controls autoplay></video>
+    <div class="footer-controls">
+        <button id="shutdownButton" class="shutdown-button">
+            <img src="{{ url_for('static', filename='img/shutdown_icon.png') }}" alt="Apagar" class="button-icon">
+            Apagar Sistema
+        </button>
     </div>
 
-    <script src="/static/js/script.js"></script>
-  </body>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
 </html>

@@ -1,570 +1,386 @@
-from flask import Flask, render_template, Response, jsonify, request
-from flask_cors import CORS
-import cv2
-import time
-import threading
 import os
-import random
+import time
+from flask import Flask, render_template, Response, request, jsonify, url_for
+from flask_socketio import SocketIO, emit
+import cv2
+import face_recognition
 import numpy as np
-import tflite_runtime.interpreter as tflite
-import sys
+import threading
+from werkzeug.utils import secure_filename # Para el manejo de nombres de archivo
+from gtts import gTTS # Para Text-to-Speech
+import pygame # Para reproducir audio (aunque el cliente lo maneja ahora, se mantiene por si acaso)
+from mutagen.mp3 import MP3 # Para obtener la duración del audio
 
 app = Flask(__name__)
-CORS(app)
+app.config['SECRET_KEY'] = 'secret!' # ¡Cambia esto en producción!
+app.config['UPLOAD_FOLDER'] = 'static/known_faces'
+app.config['AUDIO_FOLDER'] = 'static/audio' # Carpeta para audios generados
+app.config['VIDEO_FOLDER'] = 'static/videos' # Carpeta para videos
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+socketio = SocketIO(app, async_mode='threading')
 
-frame_lock = threading.Lock()
-current_frame = None
-detection_complete = False # Flag para indicar si una emoción estable ha sido detectada
-detected_emotion = "neutral"
-detected_snapshot = None # Para guardar el frame cuando se detecta una emoción
-last_emotion = None # Para mostrar la emoción actual antes de estabilizar
-emotion_start_time = None
-emotion_buffer = [] # Buffer para almacenar las últimas emociones detectadas
-buffer_window = 4 # Ventana de tiempo en segundos para el buffer de emociones
-threshold_ratio = 0.6 # Ratio mínimo de la emoción dominante en el buffer para considerarla estable
-min_count = 5 # Cantidad mínima de detecciones en el buffer para considerar la estabilización
-forced_video_to_play = None # Guarda el nombre del video a forzar desde la interfaz de control
-restart_requested = False # Nuevo flag para indicar que se solicitó un reinicio/skip desde otra interfaz
+# Asegurarse de que las carpetas existen
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['AUDIO_FOLDER'], exist_ok=True)
+os.makedirs(app.config['VIDEO_FOLDER'], exist_ok=True) # Crear carpeta de videos también
 
-
-# --- Asegurarse de que la ruta del cascade classifier sea correcta ---
-# cv2.data.haarcascades es la ubicación predeterminada de OpenCV para estos archivos
-# Si OpenCV fue instalado de forma no estándar, podrías necesitar la ruta completa:
-# face_cascade = cv2.CascadeClassifier('/usr/share/opencv4/haarcascades/haarcascade_frontalface_default.xml')
-# O buscarlo en el entorno virtual
+# Inicializar Pygame Mixer (una sola vez, por si se usa en el servidor)
 try:
-    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-    if face_cascade.empty():
-        print("CRITICAL ERROR: Cascade Classifier 'haarcascade_frontalface_default.xml' not loaded.")
-        # Considerar agregar un exit() o un mecanismo de reintento/notificación
-except Exception as e:
-    print(f"CRITICAL ERROR loading Cascade Classifier: {e}")
-    face_cascade = None # Asegurar que es None si falla
+    pygame.mixer.init()
+except pygame.error as e:
+    print(f"Advertencia: No se pudo inicializar pygame.mixer: {e}. La reproducción de audio en el servidor podría no funcionar.")
 
 
-emotion_labels = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
+# Variables globales para el manejo de rostros y cámara
+known_face_encodings = []
+known_face_names = []
+camera_active = False
+recognition_active = True  # Controla si el reconocimiento está activo al inicio
+last_recognized_name = None
+recognition_cooldown = 10 # Segundos de cooldown para no repetir el saludo inmediatamente
+last_recognition_time = {} # Diccionario para rastrear el último tiempo de reconocimiento por nombre
 
-interpreter = None
-input_details = None
-output_details = None
+# Simulación de estados de ánimo
+current_expression = "neutral"
 
-try:
-    # Asegúrate de que el archivo 'emotion_model.tflite' esté en la misma carpeta que app.py
-    # O proporciona la ruta completa/correcta si está en otro lugar
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "emotion_model.tflite")
-    interpreter = tflite.Interpreter(model_path=model_path)
-    interpreter.allocate_tensors()
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
-    print("TFLite model loaded successfully. Input shape:", input_details[0]['shape']) # type: ignore
-except Exception as e:
-    print(f"CRITICAL ERROR: Failed to load TFLite model: {e}")
-    interpreter = None # Asegurar que es None si falla
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-def predict_emotion_tflite(face_roi):
-    """Predice la emoción de una ROI de cara usando el modelo TFLite."""
-    global interpreter, input_details, output_details
-    if interpreter is None:
-        # Si el modelo no cargó, siempre devuelve neutral
-        return "neutral"
-    if face_roi is None or face_roi.size == 0:
-        return "neutral"
+def load_known_faces():
+    global known_face_encodings, known_face_names
+    known_face_encodings = []
+    known_face_names = []
+    print(f"Cargando caras desde: {app.config['UPLOAD_FOLDER']}")
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        print(f"Error: La carpeta de caras conocidas no existe: {app.config['UPLOAD_FOLDER']}")
+        return
 
-    # Preprocesar la imagen para el modelo
-    gray_face = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
-    try:
-        # El modelo espera una imagen de 48x48 (basado en los detalles de entrada del manifest)
-        h, w = input_details[0]['shape'][1:3] # type: ignore
-        gray_face_resized = cv2.resize(gray_face, (w, h))
-    except Exception as e:
-        print(f"Error resizing face ROI: {e}")
-        return "neutral"
-
-    # Normalizar y añadir dimensiones para el input del modelo
-    gray_face_resized = gray_face_resized.astype("float32") / 255.0
-    # Expandir dimensiones: (batch_size, height, width, channels)
-    input_data = np.expand_dims(np.expand_dims(gray_face_resized, axis=-1), axis=0)
-
-    try:
-        # Ejecutar inferencia
-        interpreter.set_tensor(input_details[0]['index'], input_data) # type: ignore
-        interpreter.invoke()
-        preds = interpreter.get_tensor(output_details[0]['index'])[0] # type: ignore
-
-        # Obtener la emoción con la mayor probabilidad
-        return emotion_labels[np.argmax(preds)]
-    except Exception as e:
-        print(f"Error TFLite invocation: {e}")
-        return "neutral"
-
-def detection_loop():
-    """Bucle principal para la detección de caras y emociones."""
-    global current_frame, detection_complete, detected_emotion, detected_snapshot
-    global last_emotion, emotion_start_time, emotion_buffer, forced_video_to_play
-
-    cap = None
-    print("Detection Loop: Initializing camera...")
-    try:
-        # Intenta abrir la cámara (0 es típicamente la cámara predeterminada)
-        # Asegúrate de que la cámara esté disponible y no la esté usando otro proceso
-        cap = cv2.VideoCapture(0)
-        if cap.isOpened():
-            # Reducir resolución para mejorar rendimiento en RPi
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-            print(f"Camera initialized. Resolution: {cap.get(cv2.CAP_PROP_FRAME_WIDTH)}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT)}")
-        else:
-            print("CRITICAL: Camera not accessible (VideoCapture.isOpened() is false).")
-            # Intentar cargar fallback si la cámara falla persistentemente
+    for filename in os.listdir(app.config['UPLOAD_FOLDER']):
+        if allowed_file(filename):
+            name = os.path.splitext(filename)[0]
+            # Reemplazar guiones bajos con espacios para nombres más amigables si es necesario
+            # name = name.replace('_', ' ')
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             try:
-                 fallback_img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "test.png")
-                 fallback_img = cv2.imread(fallback_img_path)
-                 if fallback_img is not None:
-                     ret_fb, jpeg_fb = cv2.imencode('.jpg', fallback_img)
-                     if ret_fb:
-                         with frame_lock:
-                             current_frame = jpeg_fb.tobytes()
-                             print("Using fallback image for stream.")
-                     else:
-                         print("Failed to encode fallback image.")
-                 else:
-                     print("Fallback image not found.")
-            except Exception as e_fb:
-                print(f"Error loading fallback image: {e_fb}")
-            return # Salir del hilo si la cámara no se abre
-
-    except Exception as e_cap:
-        print(f"CRITICAL ERROR initializing VideoCapture: {e_cap}")
-        # En caso de excepción al inicializar VideoCapture, intentar usar fallback
-        try:
-             fallback_img_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "test.png")
-             fallback_img = cv2.imread(fallback_img_path)
-             if fallback_img is not None:
-                 ret_fb, jpeg_fb = cv2.imencode('.jpg', fallback_img)
-                 if ret_fb:
-                     with frame_lock:
-                         current_frame = jpeg_fb.tobytes()
-                         print("Using fallback image due to VideoCapture initialization error.")
-                 else:
-                     print("Failed to encode fallback image after error.")
-             else:
-                 print("Fallback image not found after error.")
-        except Exception as e_fb_err:
-             print(f"Error loading fallback image after error: {e_fb_err}")
-
-        return # Salir del hilo en caso de excepción
-
-    # Intervalo para procesar la detección (para no sobrecargar la CPU)
-    detection_processing_interval = 0.1 # Procesar detección cada 100ms (10 FPS)
-    last_detection_time = time.time()
-
-    print("Detection Loop: Starting frame processing.")
-    while True:
-        # Si hay un video forzado reproduciéndose, la detección se pausa o ignora
-        # El frontend maneja la reproducción del video forzado
-        # La detección también se pausa si se ha solicitado un reinicio, para evitar
-        # que una detección se complete justo antes de que se reinicie la UI.
-        if forced_video_to_play or restart_requested:
-            # Podrías opcionalmente mostrar un frame estático o negro aquí
-            # para el stream si no quieres congelar el último frame de la cámara
-            # Por ahora, simplemente espera para no consumir CPU innecesariamente
-            time.sleep(0.1)
-            continue
-
-        # Si la cámara se desconecta inesperadamente durante el bucle
-        if cap is None or not cap.isOpened():
-             print("Camera disconnected in loop. Attempting to re-open...")
-             if cap: cap.release() # Liberar recurso si existe
-             cap = cv2.VideoCapture(0)
-             if cap.isOpened():
-                 cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-                 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-                 print("Camera re-opened successfully.")
-             else:
-                 print("Failed to re-open camera. Waiting before next attempt.")
-                 with frame_lock: current_frame = None # Limpiar frame para indicar problema
-                 time.sleep(5) # Esperar 5 segundos antes de reintentar
-                 continue # Ir a la siguiente iteración del bucle
-
-        ret, frame = cap.read() # Capturar un frame
-        if not ret or frame is None:
-            # Si no se puede leer el frame, esperar un poco y continuar
-            # print("Failed to read frame from camera.") # Descomentar para depurar fallos de lectura
-            with frame_lock: current_frame = None # Limpiar frame
-            time.sleep(0.1)
-            continue
-
-        current_time_loop = time.time()
-        processed_frame_for_stream = frame.copy() # Copia para el stream
-
-        # Procesar detección solo si no está completa, no hay video forzado, no hay reinicio solicitado
-        # y ha pasado el intervalo, y el cascade classifier cargó.
-        if face_cascade is not None and not detection_complete and (current_time_loop - last_detection_time > detection_processing_interval):
-            last_detection_time = current_time_loop
-
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # Ajusta scaleFactor y minNeighbors si la detección es lenta o inconsistente
-            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60)) # Ajustar params
-
-            if len(faces) > 0:
-                # Solo considera la primera cara detectada
-                (x, y, w, h) = faces[0]
-
-                # Dibujar recuadro en la copia que se usará para el stream
-                cv2.rectangle(processed_frame_for_stream, (x, y), (x+w, y+h), (0, 255, 0), 2)
-
-                # Extraer la región de interés (ROI) de la cara del frame original
-                face_roi = frame[y:y+h, x:x+w]
-
-                # Predecir la emoción usando el modelo TFLite
-                emotion = predict_emotion_tflite(face_roi)
-
-                # --- Lógica del Buffer de Emociones para Estabilización ---
-                # Añadir la detección actual al buffer con timestamp
-                emotion_buffer.append((time.time(), emotion))
-
-                # Eliminar detecciones viejas del buffer
-                emotion_buffer = [(t, e) for (t, e) in emotion_buffer if time.time() - t <= buffer_window]
-
-                # Verificar si hay suficientes detecciones para intentar estabilizar
-                if len(emotion_buffer) >= min_count:
-                    # Contar la frecuencia de cada emoción en el buffer
-                    freq = {}
-                    for _, e in emotion_buffer:
-                         freq[e] = freq.get(e, 0) + 1
-
-                    if freq: # Asegurarse de que el diccionario no esté vacío
-                        # Encontrar la emoción dominante
-                        dominant_emotion = max(freq, key=freq.get)
-
-                        # Verificar si la emoción dominante cumple el umbral de ratio
-                        if freq[dominant_emotion] / len(emotion_buffer) >= threshold_ratio:
-                            # Si la detección se ha estabilizado y no habíamos completado antes
-                            if not detection_complete:
-                                print(f"Detection Loop: Emotion stabilized: {dominant_emotion}. Triggering interaction.")
-                                detection_complete = True # Marcar detección como completa
-                                detected_emotion = dominant_emotion # Guardar la emoción final
-                                # Guardar un snapshot del frame cuando la detección se completa
-                                ret_snap, snap_jpeg = cv2.imencode('.jpg', frame) # Snapshot del frame original
-                                if ret_snap:
-                                     detected_snapshot = snap_jpeg.tobytes()
-                                     print("Snapshot captured.")
-                                else:
-                                     print("Failed to capture snapshot.")
-                        else:
-                             # Si no se estabilizó, pero hay una emoción dominante actual
-                             last_emotion = dominant_emotion
-                             # print(f"Detection Loop: Current dominant (unstable): {last_emotion}") # Descomentar para depurar
-                    else:
-                        last_emotion = None # Buffer vacío o error, reset last_emotion
-                        # print("Detection Loop: Emotion buffer empty/error.") # Descomentar para depurar
+                face_image = face_recognition.load_image_file(image_path)
+                face_encodings_list = face_recognition.face_encodings(face_image)
+                if face_encodings_list:
+                    known_face_encodings.append(face_encodings_list[0])
+                    known_face_names.append(name)
+                    print(f"Cara cargada: {name}")
                 else:
-                    # Si el buffer aún no tiene suficientes elementos, usar la última detección
-                    last_emotion = emotion
-                    # print(f"Detection Loop: Buffer too small ({len(emotion_buffer)}), current: {last_emotion}") # Descomentar para depurar
+                    print(f"No se encontró cara en {filename}")
+            except Exception as e:
+                print(f"Error cargando imagen {filename}: {e}")
+    print(f"Total de caras conocidas cargadas: {len(known_face_names)}")
 
-                # Dibujar la emoción actual (estable o no) en la copia del stream
-                if last_emotion:
-                     cv2.putText(processed_frame_for_stream, last_emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-            else: # No faces
-                # Si no hay caras, resetear el buffer y el estado si la detección no está completa
-                if not detection_complete:
-                    emotion_buffer.clear()
-                    last_emotion = "no_face" # O simplemente None, según prefieras mostrar
-                    # print("Detection Loop: No face detected.") # Descomentar para depurar
-                # Si ya se detectó una emoción estable, no resetear hasta que se reinicie la interacción
-
-        # Codificar el frame procesado (con recuadro y emoción) para el stream de video
-        ret_jpeg, jpeg_frame = cv2.imencode('.jpg', processed_frame_for_stream)
-        if ret_jpeg:
-            with frame_lock:
-                current_frame = jpeg_frame.tobytes()
-        else:
-             print("Failed to encode frame for stream.")
-             with frame_lock: current_frame = None # Limpiar frame
-
-        # Pequeña pausa para controlar la tasa de frames del stream
-        # y reducir el uso de CPU si es necesario
-        time.sleep(0.05) # Aproximadamente 20 FPS para el stream
-
-    # Limpieza al salir del bucle (aunque con daemon=True esto rara vez se ejecuta)
-    if cap:
-        cap.release()
-    print("Detection Loop: Camera released.")
+def generate_audio_greeting(name):
+    """Genera un archivo de audio de saludo y devuelve su ruta y duración."""
+    text = f"Hola {name}, qué alegría verte." # Mensaje de saludo personalizado
+    # Crear un nombre de archivo seguro para el audio
+    safe_name = "".join(c if c.isalnum() else "_" for c in name)
+    audio_filename = f"greeting_{safe_name}.mp3"
+    audio_path_server = os.path.join(app.config['AUDIO_FOLDER'], audio_filename)
+    # Generar la URL para el cliente
+    audio_path_client = url_for('static', filename=f'audio/{audio_filename}', _external=False)
 
 
-print("Starting detection thread...")
-# Iniciar el hilo de detección. daemon=True permite que el hilo se cierre cuando el programa principal finaliza.
-detection_thread = threading.Thread(target=detection_loop, daemon=True)
-detection_thread.start()
+    if not os.path.exists(audio_path_server):
+        try:
+            print(f"Generando audio para: {name} en {audio_path_server}")
+            tts = gTTS(text=text, lang='es', slow=False)
+            tts.save(audio_path_server)
+            print(f"Audio generado: {audio_path_server}")
+        except Exception as e:
+            print(f"Error generando audio para {name}: {e}")
+            return None, 0
 
-def gen_video():
-    """Generador para el stream de video MJPEG."""
-    print("gen_video: Client connected, starting stream generation.") # Log para depurar si se accede
-    global current_frame
-    # Asegurarse de que haya un frame inicial para evitar errores al inicio
-    # Puedes cargar un frame placeholder aquí si prefieres
-    while True:
-        # Obtener el frame actual de forma segura
-        with frame_lock:
-            frame_to_send = current_frame
+    try:
+        audio_info = MP3(audio_path_server)
+        duration = audio_info.info.length
+        return audio_path_client, duration
+    except Exception as e:
+        print(f"Error obteniendo duración del audio para {audio_path_server}: {e}")
+        # Devolver la ruta del cliente incluso si la duración falla, con una duración por defecto
+        return audio_path_client, 5 # Duración por defecto de 5 segundos si falla la lectura
 
-        if frame_to_send:
-            # Enviar el frame codificado en formato MJPEG
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_to_send + b'\r\n')
-        else:
-            # Si no hay frame (ej. cámara desconectada), puedes enviar un placeholder
-             try:
-                 placeholder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"static","test.png")
-                 with open(placeholder_path, "rb") as f: img_bytes = f.read()
-                 yield (b'--frame\r\n'
-                        b'Content-Type: image/jpeg\r\n\r\n' + img_bytes + b'\r\n')
-             except Exception as e:
-                 # Si el placeholder falla, esperar un poco y loguear
-                 print(f"gen_video: Error sending placeholder: {e}")
-                 time.sleep(0.5)
+def face_recognition_thread_func():
+    global camera_active, recognition_active, last_recognized_name, current_expression, last_recognition_time
+    
+    print("Intentando abrir la cámara...")
+    video_capture = cv2.VideoCapture(0) # Intenta con el índice 0 por defecto
+    
+    # Intentar con otros índices si el 0 falla (común en sistemas con múltiples cámaras o virtuales)
+    if not video_capture.isOpened():
+        print("Cámara 0 no disponible, intentando con índice -1...")
+        video_capture = cv2.VideoCapture(-1) # A veces -1 funciona
+    if not video_capture.isOpened():
+        print("Cámara -1 no disponible, intentando con índice 1...")
+        video_capture = cv2.VideoCapture(1)
+        
+    if not video_capture.isOpened():
+        print("Error Crítico: No se pudo abrir ninguna cámara.")
+        camera_active = False
+        return
+
+    print("Cámara abierta exitosamente.")
+    camera_active = True
+    print("Hilo de reconocimiento facial iniciado.")
+
+    # Ajustar resolución para mejorar rendimiento si es necesario
+    video_capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    video_capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    # Ajustar FPS si es posible y necesario (no todos los drivers lo soportan bien)
+    # video_capture.set(cv2.CAP_PROP_FPS, 15)
 
 
-        # Controlar la tasa de frames enviados en el stream
-        time.sleep(0.05) # Envía frames a ~20 FPS
+    process_this_frame = True # Para procesar frames alternos y ahorrar CPU
+
+    while camera_active:
+        if not recognition_active:
+            # Aunque el reconocimiento esté pausado, seguimos enviando frames para el stream
+            ret, frame = video_capture.read()
+            if ret:
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70]) # Comprimir un poco
+                frame_bytes = buffer.tobytes()
+                socketio.emit('video_frame', {'image': frame_bytes})
+            else:
+                print("Error capturando frame mientras el reconocimiento está pausado.")
+                # Intentar reabrir la cámara si falla la captura
+                video_capture.release()
+                video_capture = cv2.VideoCapture(0) # o el índice que funcionó
+                if not video_capture.isOpened():
+                    print("Error Crítico: Se perdió la conexión con la cámara y no se pudo reabrir.")
+                    camera_active = False # Terminar el hilo si no se puede recuperar la cámara
+                    break 
+            socketio.sleep(0.1) # Pausa más larga si solo se hace streaming
+            continue
+
+        ret, frame = video_capture.read()
+        if not ret:
+            print("Error al capturar frame de la cámara.")
+            # Intentar reabrir la cámara si falla la captura
+            video_capture.release()
+            video_capture = cv2.VideoCapture(0) # o el índice que funcionó
+            if not video_capture.isOpened():
+                print("Error Crítico: Se perdió la conexión con la cámara y no se pudo reabrir.")
+                camera_active = False # Terminar el hilo si no se puede recuperar la cámara
+                break 
+            socketio.sleep(0.1) # Pequeña pausa antes de reintentar
+            continue
+
+        # Procesar solo frames alternos para ahorrar recursos
+        if process_this_frame:
+            # Reducir el tamaño del frame para un reconocimiento más rápido
+            small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25) # Reducir a 1/4
+            rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+
+            face_locations = face_recognition.face_locations(rgb_small_frame, model="hog") # 'hog' es más rápido que 'cnn'
+            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+
+            # current_recognized_in_frame = None # Para saber si alguien fue reconocido en este frame
+
+            for face_encoding, face_location in zip(face_encodings, face_locations):
+                if not known_face_encodings: # Si no hay caras cargadas, no hacer nada
+                    break
+
+                matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.58) # Ajustar tolerancia
+                name = "Desconocido"
+
+                face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+                if len(face_distances) > 0:
+                    best_match_index = np.argmin(face_distances)
+                    if matches[best_match_index]:
+                        name = known_face_names[best_match_index]
+
+                current_time = time.time()
+                if name != "Desconocido" and \
+                   (name != last_recognized_name or \
+                    (current_time - last_recognition_time.get(name, 0)) > recognition_cooldown):
+                    
+                    last_recognized_name = name
+                    last_recognition_time[name] = current_time
+                    # current_recognized_in_frame = name
+                    print(f"Cara reconocida: {name}")
+
+                    audio_path, audio_duration = generate_audio_greeting(name)
+                    if audio_path and audio_duration > 0:
+                        socketio.emit('recognized_face', {
+                            'name': name,
+                            'message': f'Hola {name}, bienvenido!',
+                            'audio_path': audio_path,
+                            'audio_duration': audio_duration
+                        })
+                        current_expression = "happy" # O alguna expresión relevante
+                        socketio.emit('expression', {'expression': current_expression})
+
+                        # Opcional: reproducir un video después del saludo
+                        # video_filename_for_user = f"video_{name}.mp4" # Asume que tienes videos nombrados así
+                        # video_path_for_user = os.path.join(app.config['VIDEO_FOLDER'], video_filename_for_user)
+                        # if os.path.exists(video_path_for_user):
+                        #    socketio.sleep(audio_duration + 0.5) # Esperar a que termine el audio
+                        #    video_url = url_for('static', filename=f'videos/{video_filename_for_user}')
+                        #    socketio.emit('play_video', {'video_path': video_url})
+
+                    else:
+                        print(f"No se pudo generar audio para {name}, no se emite evento recognized_face.")
+                    break # Procesar solo la primera cara reconocida y que cumpla el cooldown
+
+        process_this_frame = not process_this_frame # Alternar
+
+        # Dibujar recuadros en el frame original (escalando las coordenadas)
+        # for (top, right, bottom, left) in face_locations:
+        #     top *= 4
+        #     right *= 4
+        #     bottom *= 4
+        #     left *= 4
+        #     cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+        #     # cv2.putText(frame, name_to_display_on_frame, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.8, (255, 255, 255), 1)
+
+        # Transmitir el frame de video
+        _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 70]) # Comprimir un poco
+        frame_bytes = buffer.tobytes()
+        socketio.emit('video_frame', {'image': frame_bytes})
+
+        socketio.sleep(0.03) # Ajustar según sea necesario (aprox 30 FPS si el procesamiento es rápido)
+
+    video_capture.release()
+    cv2.destroyAllWindows() # Asegurarse de liberar ventanas si se crearon
+    print("Hilo de reconocimiento facial detenido.")
+    camera_active = False
 
 @app.route('/')
-def route_index():
-    """Ruta principal que sirve la interfaz de interacción."""
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_start_time, emotion_buffer, restart_requested
-    print("Route /: Resetting state for new session.")
-    # Resetear el estado al cargar la página principal
-    detection_complete = False
-    detected_emotion = "neutral"
-    detected_snapshot = None
-    last_emotion = None
-    emotion_start_time = None
-    emotion_buffer.clear()
-    forced_video_to_play = None # Asegurar que no haya video forzado al inicio de la interacción
-    restart_requested = False # Asegurar que el flag de reinicio esté false al inicio
-
+def index():
     return render_template('index.html')
 
-@app.route('/video_feed')
-def video_feed_route():
-    """Ruta para el stream de video en vivo."""
-    # Asegurarse de que el face_cascade se haya cargado antes de intentar usar la cámara para detección
-    # aunque gen_video puede enviar un placeholder si la cámara falla en el hilo de detección
-    if face_cascade is None and interpreter is None:
-        print("API /video_feed: Neither face_cascade nor TFLite model loaded. Camera/detection likely non-functional.")
-        # Podrías considerar devolver un error 500 o un placeholder fijo aquí
-        # En este caso, gen_video intentará enviar el placeholder.
-        pass # Continúa para permitir que gen_video maneje la falta de frames
+recognition_thread = None
+
+@app.route('/start_recognition', methods=['POST'])
+def start_recognition_route():
+    global recognition_active, camera_active, recognition_thread
+    if not camera_active:
+        recognition_active = True
+        load_known_faces()
+        if recognition_thread is None or not recognition_thread.is_alive():
+            recognition_thread = threading.Thread(target=face_recognition_thread_func, daemon=True)
+            recognition_thread.start()
+            return jsonify({'status': 'Hilo de reconocimiento iniciado'})
+        else:
+            return jsonify({'status': 'El hilo de reconocimiento ya está activo pero la cámara no lo estaba. Intentando reactivar.'})
+    elif not recognition_active:
+        recognition_active = True
+        load_known_faces() # Recargar por si acaso
+        return jsonify({'status': 'Reconocimiento reactivado'})
+    return jsonify({'status': 'Reconocimiento ya activo o la cámara se está iniciando'})
 
 
-    return Response(gen_video(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/detection_status')
-def detection_status_route():
-    """Ruta para que el frontend consulte el estado de detección."""
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, restart_requested
-
-    status_data = {
-        "detected": detection_complete,
-        "emotion": detected_emotion,
-        "restart_requested": restart_requested # Incluir el nuevo flag de reinicio
-        # No envíamos el snapshot aquí directamente, se pide por separado si detected es True
-    }
-
-    # Si hay un video forzado pendiente, lo enviamos en este status check
-    video_to_send_now = forced_video_to_play
-    if video_to_send_now:
-        status_data["forced_video"] = video_to_send_now
-        print(f"API /detection_status: Sending forced_video: {video_to_send_now} & resetting flag.")
-        forced_video_to_play = None # Resetear la bandera después de enviarla
-
-    # Resetear el flag de reinicio *después* de que el frontend lo haya leído
-    if restart_requested:
-         print("API /detection_status: Restart flag sent. Resetting restart_requested.")
-         restart_requested = False
+@app.route('/stop_recognition', methods=['POST'])
+def stop_recognition_route():
+    global recognition_active, last_recognized_name
+    if recognition_active:
+        recognition_active = False
+        last_recognized_name = None # Resetear el último nombre reconocido
+        socketio.emit('expression', {'expression': 'neutral'}) # Resetear expresión en el cliente
+        print("Reconocimiento pausado por el usuario.")
+        return jsonify({'status': 'Reconocimiento pausado'})
+    return jsonify({'status': 'El reconocimiento ya estaba pausado'})
 
 
-    # Después de enviar el estado de detección completa/emoción,
-    # reiniciamos las variables relevantes para permitir una nueva detección.
-    # Esto ocurre DESPUÉS de que el frontend haya tenido la oportunidad de leer el estado.
-    # La lógica en el frontend (`script.js`) es la que decide qué hacer con este estado.
-    if detection_complete:
-        print(f"API /detection_status: Detection complete state sent. Resetting detection_complete.")
-        detection_complete = False # Permitir una nueva detección
-        # detected_emotion se mantiene hasta la próxima detección estable o reinicio completo
-        # detected_snapshot se mantiene hasta la próxima detección estable o reinicio completo
-        # emotion_buffer.clear() # Opcional: podrías querer limpiar el buffer aquí también
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file_route():
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return jsonify({'error': 'No hay parte de archivo en la solicitud'}), 400
+        file = request.files['file']
+        name = request.form.get('name', '').strip()
 
-    return jsonify(status_data)
+        if not name:
+            return jsonify({'error': 'El nombre es requerido'}), 400
+        if file.filename == '':
+            return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
+        if file and allowed_file(file.filename):
+            # Usar el nombre proporcionado para el archivo, limpiándolo
+            # Es buena idea hacer el nombre más seguro para archivos
+            base, ext = os.path.splitext(file.filename)
+            filename = secure_filename(name + ext) # secure_filename para el nombre completo
+            
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            try:
+                file.save(filepath)
+                print(f"Archivo {filename} guardado para {name}.")
+                # Recargar las caras conocidas después de una nueva subida
+                load_known_faces()
+                return jsonify({'success': f'Archivo {filename} subido exitosamente para {name}. Caras recargadas.'}), 200
+            except Exception as e:
+                return jsonify({'error': f'Error guardando archivo: {str(e)}'}), 500
+        else:
+            return jsonify({'error': 'Tipo de archivo no permitido'}), 400
+    # Para GET request, mostrar el formulario de subida
+    return render_template('upload.html')
 
-@app.route('/snapshot')
-def snapshot_route():
-    """Ruta para obtener el snapshot cuando se detecta una emoción."""
-    global detected_snapshot
-    if detected_snapshot:
-        return Response(detected_snapshot, mimetype='image/jpeg')
-    else:
-        # Si no hay snapshot (aún no se ha detectado emoción o ya se usó), enviar un placeholder
-        try:
-            placeholder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"static","test.png")
-            with open(placeholder_path, "rb") as f:
-                return Response(f.read(), mimetype='image/jpeg')
-        except Exception as e:
-             print(f"API /snapshot: Placeholder not found: {e}")
-             return "No snapshot available or placeholder not found", 404 # O un error más amigable
+@app.route('/shutdown', methods=['POST'])
+def shutdown_server_route():
+    print("Solicitud de apagado recibida.")
+    global camera_active, recognition_active, recognition_thread
+    
+    recognition_active = False # Detener el bucle de reconocimiento
+    camera_active = False      # Señal para que el hilo de la cámara termine
 
-@app.route('/get_random_audio')
-def get_random_audio_route():
-    """Ruta para obtener un archivo de audio aleatorio basado en la emoción detectada."""
-    global detected_emotion
-    # Mapear emociones detectadas a carpetas de audio existentes
-    # Si la emoción detectada no tiene una carpeta específica, usar "neutral"
-    emotion_folder_name = detected_emotion if detected_emotion in ["angry", "fear", "happy", "neutral", "sad", "surprise"] else "neutral"
+    if recognition_thread and recognition_thread.is_alive():
+        print("Esperando a que el hilo de reconocimiento termine...")
+        recognition_thread.join(timeout=2.0) # Esperar hasta 2 segundos
+        if recognition_thread.is_alive():
+            print("Advertencia: El hilo de reconocimiento no terminó a tiempo.")
 
-    audio_folder_path = os.path.join(app.static_folder, "audio", emotion_folder_name) # type: ignore
-    # Asegurarse de que la ruta estática se resuelva correctamente
-    abs_audio_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), audio_folder_path)
+    # Emitir un mensaje al cliente
+    socketio.emit('message', {'text': 'El servidor se está apagando.'})
+    print("Servidor y procesos detenidos (simulado).")
 
-    print(f"Attempting to get audio from: {abs_audio_folder_path} for emotion: {detected_emotion}")
+    # Comando de apagado del sistema (¡USAR CON EXTREMO CUIDADO!)
+    # Esto apagará la Raspberry Pi. Asegúrate de que es lo que quieres.
+    # DESCOMENTA SOLO SI ESTÁS SEGURO Y HAS PROBADO TODO.
+    # try:
+    #     print("Intentando apagar el sistema operativo...")
+    #     os.system('sudo shutdown -h now')
+    # except Exception as e:
+    #     print(f"Error al intentar ejecutar el comando de apagado del sistema: {e}")
+    #     return jsonify(message=f"Comando de apagado enviado, pero hubo un error al ejecutarlo en el SO: {e}"), 500
 
-    if not os.path.exists(abs_audio_folder_path):
-        print(f"Audio folder not found: {abs_audio_folder_path}. Trying 'neutral' fallback.")
-        # Fallback a la carpeta neutral si la carpeta de la emoción no existe
-        emotion_folder_name = "neutral"
-        audio_folder_path = os.path.join(app.static_folder, "audio", emotion_folder_name) # type: ignore
-        abs_audio_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), audio_folder_path)
-        if not os.path.exists(abs_audio_folder_path):
-             print(f"Neutral audio folder not found either: {abs_audio_folder_path}")
-             return jsonify({'error': 'Audio folder not found'}), 404
+    # Para desarrollo, es mejor solo detener el servidor Flask si es posible,
+    # pero con `socketio.run` esto es más complejo. La forma más segura es
+    # que el script termine y el gestor de procesos (systemd, supervisor) no lo reinicie.
+    
+    # Una forma de intentar detener el servidor Werkzeug (funciona en modo debug)
+    # func = request.environ.get('werkzeug.server.shutdown')
+    # if func is None:
+    #    print('No se pudo obtener la función de apagado de Werkzeug. El servidor podría no detenerse limpiamente.')
+    # else:
+    #    func()
+    
+    # Para un apagado más robusto, se podría enviar una señal al propio proceso
+    # import signal
+    # os.kill(os.getpid(), signal.SIGINT) # Envía una interrupción, como Ctrl+C
 
-
-    try:
-        # Listar archivos de audio (mp3, wav, ogg) en la carpeta
-        files = [f for f in os.listdir(abs_audio_folder_path) if f.lower().endswith(('.mp3', '.wav', '.ogg'))]
-        if not files:
-            print(f"No audio files found in {abs_audio_folder_path}")
-            return jsonify({'error': 'No audio files in folder'}), 404
-
-        # Seleccionar un archivo aleatorio
-        selected_file = random.choice(files)
-        audio_url = f"/static/audio/{emotion_folder_name}/{selected_file}"
-        print(f"Selected random audio: {audio_url}")
-        return jsonify({'audio_url': audio_url})
-
-    except Exception as e:
-        print(f"Error get_random_audio: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/get_random_video')
-def get_random_video_route():
-    """Ruta para obtener un archivo de video aleatorio para la interacción."""
-    video_folder_path = os.path.join(app.static_folder, "video") # type: ignore
-    # Asegurarse de que la ruta estática se resuelva correctamente
-    abs_video_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), video_folder_path)
-
-    print(f"Attempting to get random video from: {abs_video_folder_path}")
-
-    if not os.path.exists(abs_video_folder_path):
-        print(f"Video folder not found: {abs_video_folder_path}")
-        return jsonify({'error': 'Video folder not found'}), 404
-
-    try:
-        # Listar archivos de video (mp4, webm, mov, avi) en la carpeta
-        files = [f for f in os.listdir(abs_video_folder_path) if f.lower().endswith(('.mp4', '.webm', '.mov', '.avi'))]
-        if not files:
-            print(f"No video files found in {abs_video_folder_path}")
-            return jsonify({'error': 'No video files in folder'}), 404
-
-        # Seleccionar un archivo aleatorio
-        selected_file = random.choice(files)
-        video_url = f"/static/video/{selected_file}"
-        print(f"Selected random video: {video_url}")
-        return jsonify({'video_url': video_url})
-
-    except Exception as e:
-        print(f"Error get_random_video: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/list_videos')
-def list_videos_route():
-    """Ruta para listar los videos disponibles (usado por la interfaz de control)."""
-    video_folder_path = os.path.join(app.static_folder, "video") # type: ignore
-    # Asegurarse de que la ruta estática se resuelva correctamente
-    abs_video_folder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), video_folder_path)
-
-    if not os.path.exists(abs_video_folder_path):
-        return jsonify({'error': 'Video folder not found on server.'}), 404
-
-    try:
-        video_files = sorted([f for f in os.listdir(abs_video_folder_path) if f.lower().endswith(('.mp4', '.webm', '.mov', '.avi'))])
-        print(f"API /list_videos: Found videos: {video_files}")
-        return jsonify({'videos': video_files})
-    except Exception as e:
-        print(f"Error /list_videos: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/play_specific_video', methods=['POST'])
-def play_specific_video_route():
-    """Ruta para forzar la reproducción de un video específico (usado por la interfaz de control)."""
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer, restart_requested
-
-    data = request.json
-    if not data or 'video_file' not in data:
-        print("API /play_specific_video: Invalid request - missing video_file.")
-        return jsonify({'error': 'Invalid request'}), 400
-
-    video_file = data.get('video_file')
-    # Validar que el nombre de archivo sea seguro y exista
-    safe_video_file = os.path.basename(video_file) # Usar solo el nombre del archivo para seguridad
-    abs_video_path = os.path.join(app.static_folder, "video", safe_video_file) # type: ignore
-    # Asegurarse de que la ruta estática se resuelva correctamente
-    full_abs_video_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), abs_video_path)
-
-
-    if not os.path.isfile(full_abs_video_path):
-        print(f"API /play_specific_video: Video file not found: {full_abs_video_path}")
-        return jsonify({'error': f'Video "{safe_video_file}" not found.'}), 404
-
-    print(f"API /play_specific_video: Request to force play: {safe_video_file}")
-
-    # Resetear el estado de detección e interacción
-    detection_complete = False
-    detected_emotion = "neutral"
-    detected_snapshot = None
-    last_emotion = None
-    emotion_buffer.clear()
-    forced_video_to_play = safe_video_file # Establecer el video forzado
-    restart_requested = False # Asegurarse de que el flag de reinicio esté false
-
-    print(f"API /play_specific_video: forced_video_to_play SET TO: {forced_video_to_play}")
-
-    return jsonify({'status': 'ok', 'message': f'Request to play {safe_video_file} received. Main interface should switch to video.'})
-
-@app.route('/restart')
-def restart_route():
-    """Ruta para reiniciar el estado de la aplicación principal (usado por la interfaz de control)."""
-    global detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer, forced_video_to_play, restart_requested
-
-    print("API /restart: Received restart request. Setting restart_requested flag and resetting state.")
-
-    # Resetear todas las variables de estado relevante
-    detection_complete = False
-    detected_emotion = "neutral"
-    detected_snapshot = None
-    last_emotion = None
-    emotion_buffer.clear() # Limpiar el buffer de emociones
-    forced_video_to_play = None # Asegurarse de que no haya video forzado
-    restart_requested = True # **Establecer el nuevo flag de reinicio**
-
-    print("API /restart: Application state reset and restart_requested set.")
-
-    return jsonify({"status": "restarted", "message": "Application state has been reset. Restart flag set."})
+    return jsonify(message="Comando de apagado procesado. El sistema debería apagarse en breve (actualmente solo detiene los hilos internos de la app).")
 
 
 if __name__ == '__main__':
-    print("Flask app starting (performance changes)...")
-    # Usa debug=False en producción/autostart para mejor rendimiento y estabilidad
-    # use_reloader=False es importante para evitar que el hilo de detección se duplique
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    print("Iniciando aplicación Flask...")
+    load_known_faces() # Cargar caras al inicio
+
+    # Iniciar el hilo de reconocimiento automáticamente al arrancar la app
+    if recognition_thread is None or not recognition_thread.is_alive():
+        print("Iniciando hilo de reconocimiento al arrancar...")
+        recognition_thread = threading.Thread(target=face_recognition_thread_func, daemon=True)
+        recognition_thread.start()
+    else:
+        print("El hilo de reconocimiento ya estaba activo (inesperado al inicio).")
+
+
+    print(f"Servidor Flask-SocketIO escuchando en http://0.0.0.0:5000")
+    # Usar debug=False para producción para evitar que los hilos se inicien dos veces y por rendimiento.
+    # allow_unsafe_werkzeug=True es necesario para usar `request.environ.get('werkzeug.server.shutdown')`
+    # si se decide usar esa vía para el apagado, pero es mejor manejarlo externamente.
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    print("Aplicación Flask terminada.")
