@@ -1,6 +1,6 @@
 import os
 import time
-from flask import Flask, render_template, Response, request, jsonify, url_for, redirect # Añadido redirect
+from flask import Flask, render_template, Response, request, jsonify, url_for, redirect # redirect puede ser útil
 from flask_socketio import SocketIO, emit
 import cv2
 import face_recognition
@@ -12,13 +12,15 @@ import pygame
 from mutagen.mp3 import MP3
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'secret!' # ¡Cambia esto en producción!
+app.config['SECRET_KEY'] = 'tu_clave_secreta_aqui' # ¡Cambia esto en producción!
 app.config['UPLOAD_FOLDER'] = 'static/known_faces'
 app.config['AUDIO_FOLDER'] = 'static/audio'
-app.config['VIDEO_FOLDER'] = 'static/videos'
-app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+app.config['VIDEO_FOLDER'] = 'static/videos' # Aunque no se use activamente, es bueno tenerla definida
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'} # Solo estas extensiones para caras
+
 socketio = SocketIO(app, async_mode='threading')
 
+# Crear carpetas si no existen
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['AUDIO_FOLDER'], exist_ok=True)
 os.makedirs(app.config['VIDEO_FOLDER'], exist_ok=True)
@@ -28,15 +30,16 @@ try:
 except pygame.error as e:
     print(f"Advertencia: No se pudo inicializar pygame.mixer: {e}.")
 
+# Variables globales
 known_face_encodings = []
 known_face_names = []
 camera_active = False
-recognition_active = True
+recognition_active = True # Iniciar con reconocimiento activo por defecto
 last_recognized_name = None
-recognition_cooldown = 10
+recognition_cooldown = 10 # Segundos
 last_recognition_time = {}
 current_expression = "neutral"
-recognition_thread = None
+recognition_thread = None # Para mantener una referencia al hilo
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -50,9 +53,10 @@ def load_known_faces():
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         print(f"Error: La carpeta de caras conocidas no existe: {app.config['UPLOAD_FOLDER']}")
         return
+
     for filename in os.listdir(app.config['UPLOAD_FOLDER']):
-        if allowed_file(filename):
-            name = os.path.splitext(filename)[0]
+        if allowed_file(filename): # Usa la función allowed_file para consistencia
+            name = os.path.splitext(filename)[0] # El nombre es el nombre del archivo sin extensión
             image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             try:
                 face_image = face_recognition.load_image_file(image_path)
@@ -62,17 +66,18 @@ def load_known_faces():
                     known_face_names.append(name)
                     print(f"Cara cargada: {name}")
                 else:
-                    print(f"No se encontró cara en {filename}")
+                    print(f"No se encontró cara en el archivo: {filename}")
             except Exception as e:
                 print(f"Error cargando imagen {filename}: {e}")
     print(f"Total de caras conocidas cargadas: {len(known_face_names)}")
 
 def generate_audio_greeting(name):
     text = f"Hola {name}, qué alegría verte."
-    safe_name = "".join(c if c.isalnum() else "_" for c in name)
+    safe_name = "".join(c if c.isalnum() else "_" for c in name) # Nombre seguro para archivo
     audio_filename = f"greeting_{safe_name}.mp3"
     audio_path_server = os.path.join(app.config['AUDIO_FOLDER'], audio_filename)
-    audio_path_client = url_for('static', filename=f'audio/{audio_filename}', _external=False)
+    audio_path_client = url_for('static', filename=f'audio/{audio_filename}') # No necesita _external=True aquí
+
     if not os.path.exists(audio_path_server):
         try:
             tts = gTTS(text=text, lang='es', slow=False)
@@ -86,18 +91,16 @@ def generate_audio_greeting(name):
         return audio_path_client, duration
     except Exception as e:
         print(f"Error obteniendo duración del audio para {audio_path_server}: {e}")
-        return audio_path_client, 5
+        return audio_path_client, 5 # Duración por defecto si falla
 
 def face_recognition_thread_func():
     global camera_active, recognition_active, last_recognized_name, current_expression, last_recognition_time
+    
     print("Intentando abrir la cámara...")
     video_capture = cv2.VideoCapture(0)
-    if not video_capture.isOpened():
-        print("Cámara 0 no disponible, intentando con índice -1...")
-        video_capture = cv2.VideoCapture(-1)
-    if not video_capture.isOpened():
-        print("Cámara -1 no disponible, intentando con índice 1...")
-        video_capture = cv2.VideoCapture(1)
+    if not video_capture.isOpened(): video_capture = cv2.VideoCapture(-1)
+    if not video_capture.isOpened(): video_capture = cv2.VideoCapture(1)
+        
     if not video_capture.isOpened():
         print("Error Crítico: No se pudo abrir ninguna cámara.")
         camera_active = False
@@ -119,18 +122,16 @@ def face_recognition_thread_func():
                 socketio.emit('video_frame', {'image': frame_bytes})
             else:
                 print("Error capturando frame (reconocimiento pausado). Reintentando cámara.")
-                video_capture.release()
-                video_capture = cv2.VideoCapture(0) # o el índice que funcionó
-                if not video_capture.isOpened(): camera_active = False; break
+                video_capture.release(); video_capture = cv2.VideoCapture(0)
+                if not video_capture.isOpened(): camera_active = False; break 
             socketio.sleep(0.1)
             continue
 
         ret, frame = video_capture.read()
         if not ret:
             print("Error al capturar frame. Reintentando cámara.")
-            video_capture.release()
-            video_capture = cv2.VideoCapture(0) # o el índice que funcionó
-            if not video_capture.isOpened(): camera_active = False; break
+            video_capture.release(); video_capture = cv2.VideoCapture(0)
+            if not video_capture.isOpened(): camera_active = False; break 
             socketio.sleep(0.1)
             continue
 
@@ -140,7 +141,7 @@ def face_recognition_thread_func():
             face_locations = face_recognition.face_locations(rgb_small_frame, model="hog")
             face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-            for face_encoding in face_encodings: # Solo procesa una cara para simplificar
+            for face_encoding in face_encodings: 
                 if not known_face_encodings: break
                 matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.58)
                 name = "Desconocido"
@@ -175,7 +176,7 @@ def face_recognition_thread_func():
         socketio.emit('video_frame', {'image': frame_bytes})
         socketio.sleep(0.03)
 
-    video_capture.release()
+    if video_capture.isOpened(): video_capture.release()
     cv2.destroyAllWindows()
     print("Hilo de reconocimiento facial detenido.")
     camera_active = False
@@ -194,11 +195,9 @@ def start_recognition_route():
             recognition_thread = threading.Thread(target=face_recognition_thread_func, daemon=True)
             recognition_thread.start()
             return jsonify({'status': 'Hilo de reconocimiento iniciado'})
-        else:
-            return jsonify({'status': 'El hilo ya está activo pero la cámara no. Intentando reactivar.'})
     elif not recognition_active:
         recognition_active = True
-        load_known_faces()
+        # No es necesario recargar caras aquí si solo se está reactivando el flag
         return jsonify({'status': 'Reconocimiento reactivado'})
     return jsonify({'status': 'Reconocimiento ya activo o cámara iniciándose'})
 
@@ -213,48 +212,60 @@ def stop_recognition_route():
         return jsonify({'status': 'Reconocimiento pausado'})
     return jsonify({'status': 'El reconocimiento ya estaba pausado'})
 
-# --- RUTA DE UPLOAD RESTAURADA A UNA VERSIÓN MÁS SIMPLE ---
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_page(): # Renombrada para evitar conflicto si 'upload_file_route' se usó en JS
+# --- RUTA DE UPLOAD CORREGIDA Y UNIFICADA ---
+@app.route('/upload', methods=['GET', 'POST'])  # Ahora maneja GET y POST
+def upload_file():  # Nombre de función original: upload_file
     message = None
+    message_type = None # Para el CSS del mensaje
     if request.method == 'POST':
         if 'file' not in request.files or 'name' not in request.form:
             message = 'Falta archivo o nombre en el formulario.'
-            # En lugar de retornar un error 400 directamente, pasamos el mensaje a la plantilla
-            return render_template('upload.html', message=message, message_type='error')
+            message_type = 'error'
+            return render_template('upload.html', message=message, message_type=message_type)
 
         file = request.files['file']
-        name = request.form['name'].strip()
+        name_from_form = request.form['name'].strip() # Nombre que el usuario ingresa
 
-        if not name:
+        if not name_from_form:
             message = 'El nombre es requerido.'
-            return render_template('upload.html', message=message, message_type='error')
+            message_type = 'error'
+            return render_template('upload.html', message=message, message_type=message_type)
         if file.filename == '':
             message = 'No se seleccionó ningún archivo.'
-            return render_template('upload.html', message=message, message_type='error')
+            message_type = 'error'
+            return render_template('upload.html', message=message, message_type=message_type)
 
         if file and allowed_file(file.filename):
             try:
-                # Usar el nombre proporcionado para el archivo, limpiándolo y manteniendo la extensión original
-                base, ext = os.path.splitext(file.filename)
-                filename = secure_filename(name + ext)
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                # El nombre del archivo guardado será el 'name_from_form' con la extensión original.
+                # Esto es mejor que forzar .jpg o usar file.filename directamente como nombre base.
+                original_extension = os.path.splitext(file.filename)[1]
+                # Usar name_from_form como base para el nombre del archivo
+                # secure_filename se asegura de que el nombre sea seguro para el sistema de archivos.
+                # Si name_from_form es "Juan Perez", el archivo podría ser "Juan_Perez.png"
+                filename_to_save = secure_filename(name_from_form + original_extension)
+                
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename_to_save)
                 file.save(filepath)
-                load_known_faces() # Recargar caras conocidas
-                message = f'Archivo {filename} subido exitosamente para {name}. Caras recargadas.'
-                # Redirigir a la misma página de upload (o a index) con mensaje de éxito
-                # O simplemente renderizar de nuevo upload.html con el mensaje
-                return render_template('upload.html', message=message, message_type='success')
+                
+                print(f"Archivo '{filepath}' subido y guardado.")
+                load_known_faces() # ¡Importante! Recargar caras conocidas.
+                
+                message = f'Archivo {filename_to_save} subido exitosamente para {name_from_form}. Caras recargadas.'
+                message_type = 'success'
             except Exception as e:
                 print(f"Error guardando archivo: {str(e)}")
                 message = f'Error guardando archivo: {str(e)}'
-                return render_template('upload.html', message=message, message_type='error')
+                message_type = 'error'
+            # Siempre renderizar upload.html para mostrar el mensaje en la misma página
+            return render_template('upload.html', message=message, message_type=message_type)
         else:
-            message = 'Tipo de archivo no permitido.'
-            return render_template('upload.html', message=message, message_type='error')
+            message = 'Tipo de archivo no permitido. Solo se permiten: png, jpg, jpeg.'
+            message_type = 'error'
+            return render_template('upload.html', message=message, message_type=message_type)
     
-    # Para GET request, simplemente mostrar el formulario de subida
-    return render_template('upload.html', message=message) # Pasar message=None si no hay mensaje
+    # Para GET request, simplemente mostrar el formulario de subida sin mensaje previo
+    return render_template('upload.html', message=None, message_type=None)
 
 @app.route('/shutdown', methods=['POST'])
 def shutdown_server_route():
@@ -263,21 +274,26 @@ def shutdown_server_route():
     recognition_active = False
     camera_active = False
     if recognition_thread and recognition_thread.is_alive():
-        recognition_thread.join(timeout=2.0)
+        recognition_thread.join(timeout=2.0) # Esperar un poco a que el hilo termine
     
-    socketio.emit('message', {'text': 'El servidor se está apagando.'})
-    print("Servidor y procesos detenidos (simulado).")
-    # Descomentar la línea de os.system con precaución
+    socketio.emit('message', {'text': 'El servidor se está apagando.'}) # Avisar al cliente
+    print("Servidor y procesos detenidos (simulado). El sistema operativo NO se apagará con este código.")
+    # Para apagar realmente la RPi (¡CON MUCHO CUIDADO!):
     # os.system('sudo shutdown -h now')
-    return jsonify(message="Comando de apagado procesado.")
+    return jsonify(message="Comando de apagado procesado. El servidor Flask se detendrá (simulado).")
+
 
 if __name__ == '__main__':
     print("Iniciando aplicación Flask...")
-    load_known_faces()
+    load_known_faces() # Cargar caras al inicio
+    
+    # Iniciar el hilo de reconocimiento automáticamente
     if recognition_thread is None or not recognition_thread.is_alive():
         print("Iniciando hilo de reconocimiento al arrancar...")
         recognition_thread = threading.Thread(target=face_recognition_thread_func, daemon=True)
         recognition_thread.start()
+
     print(f"Servidor Flask-SocketIO escuchando en http://0.0.0.0:5000")
+    # debug=False y use_reloader=False es importante para producción y para evitar que los hilos se inicien dos veces.
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
     print("Aplicación Flask terminada.")
