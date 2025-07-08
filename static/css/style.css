@@ -50,7 +50,7 @@ body {
 
 /* Face canvas styling (bigger for vertical displays) */
 #faceCanvas {
-  width: 80%; /* Ancho relativo */
+  width: 100%; /* Ancho relativo */
   max-width: 600px; /* Ancho máximo */
   height: auto; /* Mantener relación de aspecto */
   max-height: 50vh; /* Un poco menos alto para dejar espacio al video */
