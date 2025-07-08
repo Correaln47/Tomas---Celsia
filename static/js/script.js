@@ -480,8 +480,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function setupNextTrigger() {
         // --- Configuración Personalizable del Evento Especial ---
-        const minSeconds = 180; // Mínimo de segundos para esperar (3 minutos)
-        const maxSeconds = 300; // Máximo de segundos para esperar (5 minutos)
+        const minSeconds = 120; // Mínimo de segundos para esperar (3 minutos)
+        const maxSeconds = 180; // Máximo de segundos para esperar (5 minutos)
 
         const randomDelay = Math.random() * (maxSeconds - minSeconds) + minSeconds;
         console.log(`JS: Next special event scheduled in ${Math.round(randomDelay)} seconds.`);
