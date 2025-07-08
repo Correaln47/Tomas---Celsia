@@ -22,30 +22,27 @@ document.addEventListener("DOMContentLoaded", function() {
 
      // --- Funciones de dibujo y audio (modificadas ligeramente para el analizador) ---
     function drawFace(emotion, mouthState = "neutral", amplitude = 0) {
-    // --- Configuración Inicial ---
-    const faceScale = 2.5; // Aumentamos la escala para llenar el nuevo espacio
     const cw = faceCanvas.width;
     const ch = faceCanvas.height;
     const faceCenterX = cw / 2;
     const faceCenterY = ch / 2;
     ctx.clearRect(0, 0, cw, ch);
 
-    // --- Movimiento Sutil de la Cara ---
+    // Movimiento sutil de la cara
     const t = Date.now() / 1000;
     const floatOffset = (ch * 0.01) * Math.sin(t * 0.8);
 
-    // --- Dibujar Ojos ---
-    const eyeOffsetY = ch * -0.15;
-    const eyeSeparation = cw * 0.3 * faceScale;
-    const baseEyeWidth = cw * 0.1 * faceScale;
-    let baseEyeHeight = ch * 0.1 * faceScale;
-    const eyeHeightChangeFactor = baseEyeHeight * 0.4;
+    // --- OJOS (Proporciones ajustadas para un lienzo más grande) ---
+    const eyeOffsetY = ch * -0.2; // Ojos un poco más arriba
+    const eyeSeparation = cw * 0.5; // Más separados
+    const baseEyeWidth = cw * 0.15; // Más anchos
+    let baseEyeHeight = ch * 0.15; // Más altos
     ctx.fillStyle = "black";
 
     let adjustedEyeHeight = baseEyeHeight;
     if (mouthState === "talking") {
-        adjustedEyeHeight = baseEyeHeight - (amplitude * eyeHeightChangeFactor);
-        adjustedEyeHeight = Math.max(adjustedEyeHeight, baseEyeHeight * 0.6);
+        adjustedEyeHeight = baseEyeHeight - (amplitude * baseEyeHeight * 0.6);
+        adjustedEyeHeight = Math.max(adjustedEyeHeight, baseEyeHeight * 0.4);
     } else if (emotion === "surprise") {
         adjustedEyeHeight = baseEyeHeight * 1.2;
     }
@@ -56,12 +53,11 @@ document.addEventListener("DOMContentLoaded", function() {
     ctx.fillRect(leftEyeX - baseEyeWidth / 2, eyeY - adjustedEyeHeight / 2, baseEyeWidth, adjustedEyeHeight);
     ctx.fillRect(rightEyeX - baseEyeWidth / 2, eyeY - adjustedEyeHeight / 2, baseEyeWidth, adjustedEyeHeight);
 
-    // --- Dibujar Boca ---
-    const mouthOffsetY = ch * 0.15;
-    const baseMouthRadiusX = cw * 0.18 * faceScale;
-    const baseMouthRadiusY = ch * 0.05 * faceScale;
-    const mouthOpenFactorY = ch * 0.1 * faceScale;
-    const mouthWidenFactorX = cw * 0.05 * faceScale;
+
+    // --- BOCA (Proporciones ajustadas para un lienzo más grande) ---
+    const mouthOffsetY = ch * 0.2; // Boca un poco más abajo
+    const baseMouthRadiusX = cw * 0.25; // Boca más ancha
+    const baseMouthRadiusY = ch * 0.1; // Boca más alta
     const mouthCenterX = faceCenterX;
     const mouthCenterY = faceCenterY + mouthOffsetY + floatOffset;
 
@@ -73,59 +69,41 @@ document.addEventListener("DOMContentLoaded", function() {
     let drawFill = false;
 
     ctx.beginPath();
-    ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale);
+    ctx.lineWidth = Math.max(5, cw * 0.015); // Línea más gruesa
 
     if (mouthState === "talking") {
-        const minTalkRadiusY = baseMouthRadiusY * 0.1;
-        adjustedMouthRadiusY = minTalkRadiusY + (amplitude * (mouthOpenFactorY * 0.8));
-        adjustedMouthRadiusX = baseMouthRadiusX + (amplitude * mouthWidenFactorX * 0.5);
+        adjustedMouthRadiusY = (baseMouthRadiusY * 0.1) + (amplitude * baseMouthRadiusY * 1.5);
+        adjustedMouthRadiusX = baseMouthRadiusX + (amplitude * baseMouthRadiusX * 0.2);
         startAngle = 0;
         endAngle = Math.PI * 2;
         drawFill = true;
         ctx.fillStyle = "black";
     } else if (emotion === "happy") {
-        startAngle = 0;
-        endAngle = Math.PI;
-        adjustedMouthRadiusX = baseMouthRadiusX * 1.1;
-        adjustedMouthRadiusY = baseMouthRadiusY * 1.5;
-        drawStroke = true;
-        ctx.strokeStyle = "red";
+        startAngle = 0; endAngle = Math.PI;
+        adjustedMouthRadiusY = baseMouthRadiusY;
+        drawStroke = true; ctx.strokeStyle = "red";
     } else if (emotion === "sad") {
-        startAngle = Math.PI;
-        endAngle = 0;
-        adjustedMouthRadiusX = baseMouthRadiusX * 0.9;
-        adjustedMouthRadiusY = baseMouthRadiusY * 1.3;
-        drawStroke = true;
-        ctx.strokeStyle = "blue";
+        startAngle = Math.PI; endAngle = 0;
+        adjustedMouthRadiusY = baseMouthRadiusY;
+        drawStroke = true; ctx.strokeStyle = "blue";
     } else if (emotion === "surprise") {
-        startAngle = 0;
-        endAngle = Math.PI * 2;
-        adjustedMouthRadiusY = baseMouthRadiusY * 2.5;
-        drawFill = true;
-        ctx.fillStyle = "black";
+        startAngle = 0; endAngle = Math.PI * 2;
+        adjustedMouthRadiusY = baseMouthRadiusY * 1.2;
+        drawFill = true; ctx.fillStyle = "black";
     } else if (emotion === "angry") {
-        startAngle = 0;
-        endAngle = Math.PI;
-        adjustedMouthRadiusY = baseMouthRadiusY * 0.3;
-        drawStroke = true;
-        ctx.strokeStyle = "darkred";
-        ctx.lineWidth = Math.max(4, cw * 0.015 * faceScale);
-    } else { // Neutral
-        startAngle = 0;
-        endAngle = Math.PI;
+        startAngle = 0; endAngle = Math.PI;
         adjustedMouthRadiusY = baseMouthRadiusY * 0.2;
-        drawStroke = true;
-        ctx.strokeStyle = "black";
+        drawStroke = true; ctx.strokeStyle = "darkred";
+    } else { // Neutral
+        startAngle = 0; endAngle = Math.PI;
+        adjustedMouthRadiusY = baseMouthRadiusY * 0.1;
+        drawStroke = true; ctx.strokeStyle = "black";
     }
 
     ctx.ellipse(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, adjustedMouthRadiusY, 0, startAngle, endAngle);
 
-    if (drawFill) {
-        ctx.fill();
-    }
-    if (drawStroke) {
-        ctx.stroke();
-    }
+    if (drawFill) ctx.fill();
+    if (drawStroke) ctx.stroke();
     ctx.closePath();
 }
 

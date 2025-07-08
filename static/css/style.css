@@ -50,14 +50,10 @@ body {
 
 /* Face canvas styling (bigger for vertical displays) */
 #faceCanvas {
-  width: 100%; /* Ancho relativo */
-  max-width: 600px; /* Ancho máximo */
-  height: auto; /* Mantener relación de aspecto */
-  max-height: 50vh; /* Un poco menos alto para dejar espacio al video */
-  border: 2px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  margin-bottom: 10px; /* Espacio antes del video */
+    width: 90%; /* Ocupa el 90% del ancho del contenedor */
+    height: 50vh; /* ¡AQUÍ ESTÁ LA CLAVE! Ocupa el 50% de la altura de la ventana */
+    display: block;
+    margin: 1em auto;
 }
 
 /* Video container styling (for the full-screen video) */
