@@ -49,11 +49,26 @@ body {
 }
 
 /* Face canvas styling (bigger for vertical displays) */
-#faceCanvas {
-    width: 90%; /* Ocupa el 90% del ancho del contenedor */
-    height: 50vh; /* ¡AQUÍ ESTÁ LA CLAVE! Ocupa el 50% de la altura de la ventana */
+#faceContainer {
+    position: relative; /* Necesario para que la superposición funcione */
     display: block;
-    margin: 1em auto;
+    width: 90%;      /* Ocupa el 90% del ancho */
+    height: 50vh;    /* Ocupa el 50% de la altura de la ventana */
+    margin: 1em auto; /* Lo centra en la página */
+}
+
+#faceCanvas, #specialOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#specialOverlay {
+    display: none;
+    object-fit: cover;
+    z-index: 10;
 }
 
 /* Video container styling (for the full-screen video) */
