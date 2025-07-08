@@ -22,57 +22,57 @@ document.addEventListener("DOMContentLoaded", function() {
 
      // --- Funciones de dibujo y audio (modificadas ligeramente para el analizador) ---
     function drawFace(emotion, mouthState = "neutral", amplitude = 0) {
-        const faceScale = 1.8; // Factor de escala para hacer la cara más grande
-        const cw = faceCanvas.width; const ch = faceCanvas.height; const faceCenterX = cw / 2; const faceCenterY = ch / 2;
-        const eyeOffsetY = ch * -0.15; const eyeSeparation = cw * 0.3 * faceScale; const baseEyeWidth = cw * 0.1 * faceScale; const baseEyeHeight = ch * 0.1 * faceScale;
-        const eyeHeightChangeFactor = baseEyeHeight * 0.4; const mouthOffsetY = ch * 0.15; const baseMouthRadiusX = cw * 0.18 * faceScale;
-        const baseMouthRadiusY = ch * 0.05 * faceScale; const mouthOpenFactorY = ch * 0.1 * faceScale; const mouthWidenFactorX = cw * 0.05 * faceScale;
-        const t = Date.now() / 1000; const floatOffset = (ch * 0.01) * Math.sin(t * 0.8); ctx.clearRect(0, 0, cw, ch); ctx.fillStyle = "black";
-        const leftEyeX = faceCenterX - eyeSeparation / 2 - baseEyeWidth / 2; const rightEyeX = faceCenterX + eyeSeparation / 2 - baseEyeWidth / 2;
-        const eyeY = faceCenterY + eyeOffsetY + floatOffset - baseEyeHeight / 2; let adjustedEyeHeight = baseEyeHeight;
-        if (mouthState === "talking") { adjustedEyeHeight = baseEyeHeight - (amplitude * eyeHeightChangeFactor); adjustedEyeHeight = Math.max(adjustedEyeHeight, baseEyeHeight * 0.6);
-        } else if (emotion === "surprise") { adjustedEyeHeight = baseEyeHeight * 1.2; }
-        ctx.fillRect(leftEyeX, eyeY, baseEyeWidth, adjustedEyeHeight); ctx.fillRect(rightEyeX, eyeY, baseEyeWidth, adjustedEyeHeight);
-        const mouthCenterX = faceCenterX; const mouthCenterY = faceCenterY + mouthOffsetY + floatOffset;
-        let adjustedMouthRadiusY = baseMouthRadiusY; let adjustedMouthRadiusX = baseMouthRadiusX; let startAngle = 0; let endAngle = Math.PI;
-        let drawStroke = false; let drawFill = true; ctx.fillStyle = "red"; ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(2, cw * 0.005 * faceScale);
-        if (mouthState === "talking") {
-            // La amplitud aquí es clave para el movimiento
-            const minTalkRadiusY = baseMouthRadiusY * 0.1;
-            adjustedMouthRadiusY = minTalkRadiusY + (amplitude * (mouthOpenFactorY * 0.8));
-            adjustedMouthRadiusX = baseMouthRadiusX + (amplitude * mouthWidenFactorX * 0.5);
+    const faceScale = 1.8; // Factor de escala para hacer la cara más grande
+    const cw = faceCanvas.width; const ch = faceCanvas.height; const faceCenterX = cw / 2; const faceCenterY = ch / 2;
+    const eyeOffsetY = ch * -0.15; const eyeSeparation = cw * 0.3 * faceScale; const baseEyeWidth = cw * 0.1 * faceScale; const baseEyeHeight = ch * 0.1 * faceScale;
+    const eyeHeightChangeFactor = baseEyeHeight * 0.4; const mouthOffsetY = ch * 0.15; const baseMouthRadiusX = cw * 0.18 * faceScale;
+    const baseMouthRadiusY = ch * 0.05 * faceScale; const mouthOpenFactorY = ch * 0.1 * faceScale; const mouthWidenFactorX = cw * 0.05 * faceScale;
+    const t = Date.now() / 1000; const floatOffset = (ch * 0.01) * Math.sin(t * 0.8); ctx.clearRect(0, 0, cw, ch); ctx.fillStyle = "black";
+    const leftEyeX = faceCenterX - eyeSeparation / 2 - baseEyeWidth / 2; const rightEyeX = faceCenterX + eyeSeparation / 2 - baseEyeWidth / 2;
+    const eyeY = faceCenterY + eyeOffsetY + floatOffset - baseEyeHeight / 2; let adjustedEyeHeight = baseEyeHeight;
+    if (mouthState === "talking") { adjustedEyeHeight = baseEyeHeight - (amplitude * eyeHeightChangeFactor); adjustedEyeHeight = Math.max(adjustedEyeHeight, baseEyeHeight * 0.6);
+    } else if (emotion === "surprise") { adjustedEyeHeight = baseEyeHeight * 1.2; }
+    ctx.fillRect(leftEyeX, eyeY, baseEyeWidth, adjustedEyeHeight); ctx.fillRect(rightEyeX, eyeY, baseEyeWidth, adjustedEyeHeight);
+    const mouthCenterX = faceCenterX; const mouthCenterY = faceCenterY + mouthOffsetY + floatOffset;
+    let adjustedMouthRadiusY = baseMouthRadiusY; let adjustedMouthRadiusX = baseMouthRadiusX; let startAngle = 0; let endAngle = Math.PI;
+    let drawStroke = false; let drawFill = true; ctx.fillStyle = "red"; ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(2, cw * 0.005 * faceScale);
+    if (mouthState === "talking") {
+        // La amplitud aquí es clave para el movimiento
+        const minTalkRadiusY = baseMouthRadiusY * 0.1;
+        adjustedMouthRadiusY = minTalkRadiusY + (amplitude * (mouthOpenFactorY * 0.8));
+        adjustedMouthRadiusX = baseMouthRadiusX + (amplitude * mouthWidenFactorX * 0.5);
 
-            // Asegurar límites razonables para el movimiento de la boca
-            adjustedMouthRadiusY = Math.max(minTalkRadiusY, adjustedMouthRadiusY);
-            adjustedMouthRadiusY = Math.min(baseMouthRadiusY * 2.0, adjustedMouthRadiusY);
-            adjustedMouthRadiusX = Math.max(baseMouthRadiusX * 0.8, adjustedMouthRadiusX);
+        // Asegurar límites razonables para el movimiento de la boca
+        adjustedMouthRadiusY = Math.max(minTalkRadiusY, adjustedMouthRadiusY);
+        adjustedMouthRadiusY = Math.min(baseMouthRadiusY * 2.0, adjustedMouthRadiusY);
+        adjustedMouthRadiusX = Math.max(baseMouthRadiusX * 0.8, adjustedMouthRadiusX);
 
-            startAngle = 0; endAngle = Math.PI * 2; drawFill = true; drawStroke = false; ctx.fillStyle = "black"; // Dibujar el interior como un círculo negro
-        } else if (emotion === "happy") { startAngle = Math.PI; endAngle = 0; adjustedMouthRadiusX = baseMouthRadiusX * 1.1; adjustedMouthRadiusY = baseMouthRadiusY * 1.5; drawStroke = true; drawFill = false; ctx.strokeStyle = "red"; ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale);
-        } else if (emotion === "sad") { startAngle = 0; endAngle = Math.PI; adjustedMouthRadiusX = baseMouthRadiusX * 0.9; adjustedMouthRadiusY = baseMouthRadiusY * 1.3; drawStroke = true; drawFill = false; ctx.strokeStyle = "blue"; ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale);
-        } else if (emotion === "surprise") { startAngle = 0; endAngle = Math.PI * 2; adjustedMouthRadiusX = baseMouthRadiusX * 0.8; adjustedMouthRadiusY = baseMouthRadiusY * 2.5; ctx.fillStyle = "black"; drawFill = true; drawStroke = false;
-        } else if (emotion === "angry") { startAngle = 0; endAngle = Math.PI; adjustedMouthRadiusX = baseMouthRadiusX * 1.1; adjustedMouthRadiusY = baseMouthRadiusY * 0.3; drawStroke = true; drawFill = false; ctx.strokeStyle = "darkred"; ctx.lineWidth = Math.max(4, cw * 0.015 * faceScale);
-        } else { startAngle = 0; endAngle = Math.PI; adjustedMouthRadiusY = baseMouthRadiusY * 0.2; adjustedMouthRadiusX = baseMouthRadiusX; drawStroke = true; drawFill = false; ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale); }
+        startAngle = 0; endAngle = Math.PI * 2; drawFill = true; drawStroke = false; ctx.fillStyle = "black"; // Dibujar el interior como un círculo negro
+    } else if (emotion === "happy") { startAngle = Math.PI; endAngle = 0; adjustedMouthRadiusX = baseMouthRadiusX * 1.1; adjustedMouthRadiusY = baseMouthRadiusY * 1.5; drawStroke = true; drawFill = false; ctx.strokeStyle = "red"; ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale);
+    } else if (emotion === "sad") { startAngle = 0; endAngle = Math.PI; adjustedMouthRadiusX = baseMouthRadiusX * 0.9; adjustedMouthRadiusY = baseMouthRadiusY * 1.3; drawStroke = true; drawFill = false; ctx.strokeStyle = "blue"; ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale);
+    } else if (emotion === "surprise") { startAngle = 0; endAngle = Math.PI * 2; adjustedMouthRadiusX = baseMouthRadiusX * 0.8; adjustedMouthRadiusY = baseMouthRadiusY * 2.5; ctx.fillStyle = "black"; drawFill = true; drawStroke = false;
+    } else if (emotion === "angry") { startAngle = 0; endAngle = Math.PI; adjustedMouthRadiusX = baseMouthRadiusX * 1.1; adjustedMouthRadiusY = baseMouthRadiusY * 0.3; drawStroke = true; drawFill = false; ctx.strokeStyle = "darkred"; ctx.lineWidth = Math.max(4, cw * 0.015 * faceScale);
+    } else { startAngle = 0; endAngle = Math.PI; adjustedMouthRadiusY = baseMouthRadiusY * 0.2; adjustedMouthRadiusX = baseMouthRadiusX; drawStroke = true; drawFill = false; ctx.strokeStyle = "black"; ctx.lineWidth = Math.max(3, cw * 0.01 * faceScale); }
 
-        ctx.beginPath();
-        // Para happy y sad, dibuja arcos (false para sentido antihorario, true para horario)
-        // Para otros (talking, surprise, neutral, angry) dibuja elipses completas (endAngle = Math.PI * 2) o arcos superiores (endAngle = Math.PI, startAngle=0)
-        if (emotion === 'happy') {
-            ctx.arc(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, startAngle, endAngle, true); // Dibuja el arco hacia arriba (sonrisa)
-        } else if (emotion === 'sad') {
-            ctx.arc(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, startAngle, endAngle, false); // Dibuja el arco hacia abajo (triste)
-        }
-        else {
-        // Dibuja elipses para hablar, sorpresa, neutral, enojado
-            ctx.ellipse(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, adjustedMouthRadiusY, 0, startAngle, endAngle);
-        }
-
-        if (drawFill) ctx.fill();
-        if (drawStroke || (drawFill && mouthState !== 'talking' && emotion !== 'surprise')) {
-            if(drawStroke && !drawFill) { ctx.stroke(); } else { ctx.strokeStyle = "black"; ctx.lineWidth = 2; ctx.stroke(); }
-        }
-        ctx.closePath();
+    ctx.beginPath();
+    // Para happy y sad, dibuja arcos (false para sentido antihorario, true para horario)
+    // Para otros (talking, surprise, neutral, angry) dibuja elipses completas (endAngle = Math.PI * 2) o arcos superiores (endAngle = Math.PI, startAngle=0)
+    if (emotion === 'happy') {
+        ctx.arc(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, startAngle, endAngle, true); // Dibuja el arco hacia arriba (sonrisa)
+    } else if (emotion === 'sad') {
+         ctx.arc(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, startAngle, endAngle, false); // Dibuja el arco hacia abajo (triste)
     }
+    else {
+       // Dibuja elipses para hablar, sorpresa, neutral, enojado
+        ctx.ellipse(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, adjustedMouthRadiusY, 0, startAngle, endAngle);
+    }
+
+    if (drawFill) ctx.fill();
+    if (drawStroke || (drawFill && mouthState !== 'talking' && emotion !== 'surprise')) {
+         if(drawStroke && !drawFill) { ctx.stroke(); } else { ctx.strokeStyle = "black"; ctx.lineWidth = 2; ctx.stroke(); }
+    }
+    ctx.closePath();
+}
 
      function setupAudioAnalyser(audioElement) {
          // Crea AudioContext la primera vez que se llama
