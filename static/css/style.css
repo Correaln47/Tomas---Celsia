@@ -122,7 +122,7 @@ body {
   left: 0;
   bottom: 0;
   width: 100%;
-  height: calc(100vh / 7); 
+  height: calc(100vh / 7); /* Altura: ~14.2vh */
   background-color: rgba(245, 242, 240, 0.9);
   overflow: hidden; 
   border-top: 2px solid #F39C12; 
@@ -137,26 +137,27 @@ body {
   animation: scroll 30s linear infinite;
 }
 
-/* REGLA CORREGIDA: Para los grupos de imágenes */
 #carousel-track > div {
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    /* ESTA LÍNEA ES LA SOLUCIÓN: Asegura que el contenedor del set ocupe toda la altura */
     height: 100%;
 }
 
+/* ESTA ES LA REGLA CORREGIDA */
 #carousel-track img {
-  /* La imagen ahora se ajustará al 90% de la altura de su contenedor (el div) */
-  height: 90%; 
-  width: auto; /* El ancho se ajusta automáticamente para mantener la proporción */
+  /* En lugar de un porcentaje, usamos una altura basada en el viewport (vh) */
+  /* El contenedor mide ~14vh, así que una altura de 12vh para la imagen es perfecta (aprox. 90%) */
+  /* Esto elimina cualquier ambigüedad para el navegador. */
+  height: 12vh; 
+  
+  width: auto; /* El ancho se ajusta para mantener la proporción */
   margin: 0 20px;
-  object-fit: contain; /* Garantiza que la imagen completa se vea sin cortarse */
+  object-fit: contain; 
   border-radius: 5px;
   flex-shrink: 0; 
 }
 
-/* Animación de desplazamiento */
 @keyframes scroll {
   from {
     transform: translateX(0);
