@@ -41,31 +41,53 @@
     
     <script>
       document.addEventListener('DOMContentLoaded', function() {
+        const carouselContainer = document.getElementById('carousel-container');
         const track = document.getElementById('carousel-track');
-        // Usamos la nueva ruta del servidor de carga que ahora corre en el puerto 5002
-        fetch('http://' + window.location.hostname + ':5002/list_carousel_images')
-          .then(response => response.json())
+        // El servidor donde están los archivos
+        const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
+
+        // ### MODIFICADO: Apunta directamente al archivo JSON estático ###
+        const jsonUrl = uploadServerUrl + '/static/carousel_images/carousel_data.json';
+
+        console.log('Cargando lista de imágenes desde:', jsonUrl);
+
+        // Fetch para obtener el archivo JSON
+        fetch(jsonUrl)
+          .then(response => {
+            if (!response.ok) {
+              // Este error saltará si el archivo no se encuentra (404)
+              throw new Error(`No se pudo cargar el archivo de datos: ${response.statusText}`);
+            }
+            return response.json();
+          })
           .then(data => {
+            console.log('Imágenes encontradas:', data.images);
+
             if (data.images && data.images.length > 0) {
-              // Duplicar las imágenes para un bucle infinito y suave
-              const images = [...data.images, ...data.images];
-              images.forEach(imageUrl => {
+              track.innerHTML = ''; // Limpiar el carrusel
+              
+              // Duplicar imágenes para un bucle suave e infinito
+              const imagesToLoad = [...data.images, ...data.images];
+              
+              imagesToLoad.forEach(imageUrl => {
                 const imgElement = document.createElement('img');
-                // La URL ya viene completa desde el servidor
-                imgElement.src = 'http://' + window.location.hostname + ':5002' + imageUrl;
+                // La URL completa se construye con el origen del servidor de archivos
+                imgElement.src = uploadServerUrl + imageUrl; 
                 track.appendChild(imgElement);
               });
-              // Ajustar la duración de la animación según la cantidad de imágenes
-              const animationDuration = data.images.length * 5; // 5 segundos por imagen
+              
+              const animationDuration = data.images.length * 5; // 5s por imagen
               track.style.animation = `scroll ${animationDuration}s linear infinite`;
+              carouselContainer.style.display = 'block'; // Mostrar el carrusel
+
             } else {
-                // Ocultar el carrusel si no hay imágenes
-                document.getElementById('carousel-container').style.display = 'none';
+              console.log('No hay imágenes en el carrusel, se mantendrá oculto.');
+              carouselContainer.style.display = 'none';
             }
           })
           .catch(error => {
-              console.error('Error al cargar imágenes del carrusel:', error);
-              document.getElementById('carousel-container').style.display = 'none';
+              console.error('Error al cargar el carrusel:', error);
+              carouselContainer.style.display = 'none';
           });
       });
     </script>
