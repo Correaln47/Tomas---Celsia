@@ -2,7 +2,8 @@
 body {
   margin: 0;
   padding: 0;
-  background: #FF7900; /* Color Naranja */
+  /*background: #FF7900; /* Color Naranja */
+  background: #f5f2f0;
   font-family: Arial, sans-serif;
   overflow: hidden; /* Prevent scrolling */
   display: flex; /* Usar flexbox para centrar contenido verticalmente si es necesario */
