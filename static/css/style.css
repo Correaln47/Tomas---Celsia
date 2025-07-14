@@ -114,7 +114,7 @@ body {
 }
 
 /* ================================================= */
-/* ========= SECCIÓN DEL CARRUSEL SIMPLIFICADA ========= */
+/* ========= SECCIÓN DEL CARRUSEL CORREGIDA ========= */
 /* ================================================= */
 
 #carousel-container {
@@ -134,33 +134,34 @@ body {
 #carousel-track {
   display: flex;
   height: 100%;
-  /* La animación ahora es más simple y se aplica directamente aquí */
   animation: scroll 30s linear infinite;
 }
 
-/* NUEVA REGLA: Para los grupos de imágenes que creará el JS */
+/* REGLA CORREGIDA: Para los grupos de imágenes */
 #carousel-track > div {
     display: flex;
     align-items: center;
-    flex-shrink: 0; /* Evita que el grupo se encoja */
+    flex-shrink: 0;
+    /* ESTA LÍNEA ES LA SOLUCIÓN: Asegura que el contenedor del set ocupe toda la altura */
+    height: 100%;
 }
 
 #carousel-track img {
+  /* La imagen ahora se ajustará al 90% de la altura de su contenedor (el div) */
   height: 90%; 
-  width: auto;
+  width: auto; /* El ancho se ajusta automáticamente para mantener la proporción */
   margin: 0 20px;
-  object-fit: contain; 
+  object-fit: contain; /* Garantiza que la imagen completa se vea sin cortarse */
   border-radius: 5px;
   flex-shrink: 0; 
 }
 
-/* ANIMACIÓN SIMPLIFICADA */
+/* Animación de desplazamiento */
 @keyframes scroll {
   from {
     transform: translateX(0);
   }
   to {
-    /* Siempre se desplaza la mitad de la pista, que contendrá 2 sets de imágenes */
     transform: translateX(-50%);
   }
 }
