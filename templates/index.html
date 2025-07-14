@@ -52,49 +52,53 @@
             track.innerHTML = '';
             const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
 
-            // --- LÓGICA DE LLENADO Y DUPLICACIÓN ---
+            // --- LÓGICA DE LLENADO Y BUCLE PERFECTO ---
 
-            // 1. Crear un fragmento de documento para añadir todas las imágenes de una vez (más eficiente)
-            const fragment = document.createDocumentFragment();
-            let originalImages = [];
-
+            // 1. Crear el primer "set" de imágenes que será la base.
+            const imageSet = document.createElement('div');
             imageFiles.forEach(url => {
                 const img = document.createElement('img');
                 img.src = uploadServerUrl + url;
-                originalImages.push(img);
-                fragment.appendChild(img);
+                imageSet.appendChild(img);
             });
 
-            // 2. Añadir el primer set de imágenes al track para poder medir su ancho
-            track.appendChild(fragment);
+            // 2. Medir el ancho de este set de imágenes.
+            //    Lo añadimos temporalmente para que el navegador calcule su tamaño.
+            track.appendChild(imageSet);
+            const setWidth = imageSet.offsetWidth;
+            track.innerHTML = ''; // Limpiamos la pista de nuevo.
 
-            // 3. Esperar un momento para que el navegador renderice y calcule los anchos
-            setTimeout(() => {
-                // Calcular el ancho total del set original de imágenes
-                const trackWidth = track.scrollWidth;
-                const screenWidth = window.innerWidth;
+            if (setWidth === 0) {
+                console.error("No se pudo medir el ancho de las imágenes, el carrusel no puede iniciar.");
+                carouselContainer.style.display = 'none';
+                return; // Salimos de la función si hay un error
+            }
 
-                // Calcular cuántas veces necesitamos duplicar el contenido para llenar la pantalla
-                // y tener suficiente para un bucle suave.
-                const repeatsNeeded = Math.ceil(screenWidth / trackWidth) + 1;
+            // 3. Forzar el llenado de la pista.
+            //    Calculamos cuántas veces necesitamos repetir el set para que sea MÁS ANCHO que la pantalla.
+            //    Añadimos +2 para asegurarnos de que haya contenido de sobra.
+            const repeats = Math.ceil(window.innerWidth / setWidth) + 2;
+            
+            // Creamos un gran bloque de imágenes.
+            const firstHalf = document.createElement('div');
+            for (let i = 0; i < repeats; i++) {
+                firstHalf.appendChild(imageSet.cloneNode(true));
+            }
 
-                // 4. Clonar y añadir los sets de imágenes necesarios
-                for (let i = 0; i < repeatsNeeded; i++) {
-                    originalImages.forEach(img => {
-                        track.appendChild(img.cloneNode(true));
-                    });
-                }
-                
-                // 5. Establecer la duración de la animación para una velocidad constante
-                //    (Ancho total de la pista / píxeles por segundo)
-                const finalWidth = track.scrollWidth;
-                const speed = 80; // 80 píxeles por segundo, puedes ajustar este valor
-                const animationDuration = finalWidth / speed;
+            // 4. Crear la copia idéntica para el bucle.
+            const secondHalf = firstHalf.cloneNode(true);
+            
+            // 5. Añadir ambas mitades a la pista.
+            track.appendChild(firstHalf);
+            track.appendChild(secondHalf);
+            
+            // 6. Ajustar la animación.
+            const finalWidth = firstHalf.offsetWidth; // Medimos el ancho de la primera mitad.
+            const speed = 100; // 100 píxeles por segundo. Ajusta este valor para cambiar la velocidad.
+            const animationDuration = finalWidth / speed;
 
-                track.style.animationDuration = animationDuration + 's';
-                // La animación 'scroll' del CSS se encargará del resto
-
-            }, 100); // 100ms de espera
+            // La animación del CSS se encargará del resto. Solo ajustamos la duración.
+            track.style.animationDuration = animationDuration + 's';
 
         } else {
             console.log('No se encontraron imágenes para el carrusel.');
