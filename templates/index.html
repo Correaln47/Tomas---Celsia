@@ -44,33 +44,65 @@
         const carouselContainer = document.getElementById('carousel-container');
         const track = document.getElementById('carousel-track');
         
-        // 1. Lee la lista de imágenes que Python inyectó con 'render_template'.
-        //    El filtro '|tojson' convierte la lista de Python en un array de JavaScript de forma segura.
         const imageFiles = {{ image_files|tojson }};
 
-        console.log('Lista de imágenes para el carrusel recibida desde Python:', imageFiles);
-
-        // 2. Comprueba si hay imágenes y construye el carrusel.
         if (imageFiles && imageFiles.length > 0) {
             
-            carouselContainer.style.display = 'block'; // Hace visible el contenedor
-            track.innerHTML = ''; // Limpia el contenido por si acaso
-
-            // El servidor de carga (puerto 5002) es el que aloja las imágenes
+            carouselContainer.style.display = 'block';
+            track.innerHTML = '';
             const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
-
-            // Duplica la lista para un efecto de bucle infinito
-            const imagesToLoad = [...imageFiles, ...imageFiles];
+            let originalImages = [];
             
-            imagesToLoad.forEach(imageUrl => {
-                const imgElement = document.createElement('img');
-                // Construye la URL completa apuntando al servidor de carga
-                imgElement.src = uploadServerUrl + imageUrl;
-                track.appendChild(imgElement);
+            // Usamos promesas para asegurarnos de que todas las imágenes se carguen antes de calcular anchos
+            const imageLoadPromises = imageFiles.map(imageUrl => {
+                return new Promise((resolve, reject) => {
+                    const imgElement = document.createElement('img');
+                    imgElement.src = uploadServerUrl + imageUrl;
+                    imgElement.onload = () => {
+                        originalImages.push(imgElement);
+                        resolve(imgElement);
+                    };
+                    imgElement.onerror = reject;
+                });
             });
+
+            // Cuando todas las imágenes originales se hayan cargado...
+            Promise.all(imageLoadPromises).then(() => {
+                // Calcular el ancho total del set original de imágenes (incluyendo márgenes)
+                let originalWidth = 0;
+                originalImages.forEach(img => {
+                    // El ancho de la imagen + su margen izquierdo + su margen derecho
+                    originalWidth += img.offsetWidth + (2 * 20); // 20px es el margen que pusimos en el CSS
+                });
+
+                // Para un bucle perfecto, la pista debe ser al menos el doble de ancha que la pantalla
+                // Duplicamos el contenido hasta que sea lo suficientemente largo
+                let finalImages = [...originalImages];
+                let currentWidth = originalWidth;
+
+                while (currentWidth < (2 * window.innerWidth)) {
+                    finalImages = [...finalImages, ...originalImages.map(img => img.cloneNode(true))];
+                    currentWidth *= 2;
+                }
+
+                // Añadimos todas las imágenes al track
+                finalImages.forEach(img => {
+                    track.appendChild(img);
+                });
+
+                // 3. ANIMACIÓN CORREGIDA
+                // Establecemos la variable CSS con la distancia exacta de desplazamiento
+                track.style.setProperty('--scroll-width', `-${originalWidth}px`);
+
+                // La duración se basa en el ancho para una velocidad constante
+                const animationDuration = originalWidth / 100; // 100 píxeles por segundo (ajusta para más velocidad)
+                
+                track.style.animation = `scroll ${animationDuration}s linear infinite`;
             
-            const animationDuration = imageFiles.length * 5; // 5 segundos por imagen
-            track.style.animation = `scroll ${animationDuration}s linear infinite`;
+            }).catch(error => {
+                console.error("Una o más imágenes del carrusel no se pudieron cargar.", error);
+                carouselContainer.style.display = 'none';
+            });
 
         } else {
             console.log('No se encontraron imágenes para el carrusel.');

@@ -4,57 +4,55 @@ body {
   padding: 0;
   background: #f5f2f0;
   font-family: Arial, sans-serif;
-  overflow: hidden; /* Prevent scrolling */
-  display: flex; /* Usar flexbox para centrar contenido verticalmente si es necesario */
+  overflow: hidden; 
+  display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh; /* Asegura que ocupe al menos el alto de la ventana */
+  min-height: 100vh; 
 }
 
 /* Main container styling */
 #main-container {
   width: 100%;
-  max-width: 800px; /* Limita el ancho máximo para pantallas grandes */
-  height: 100vh; /* Permitir que flex items controlen el alto */
+  max-width: 800px; 
+  height: 100vh; 
   display: flex;
-  flex-direction: column; /* Cambiado a column para que los items fluyan normalmente */
+  flex-direction: column; 
   align-items: center;
-  justify-content: flex-start; /* Alinear items al inicio del contenedor flex */
+  justify-content: flex-start; 
   padding: 20px;
-  box-sizing: border-box; /* Incluir padding en el tamaño total */
-  position: relative; /* Necesario para posicionar el comentario del botón de apagado */
-  overflow-y: auto; /* Permitir scroll si el contenido excede el alto */
+  box-sizing: border-box; 
+  position: relative; 
+  overflow-y: auto; 
 }
 
-/* Video feed and snapshot styling with orange accents */
+/* --- El resto de tus estilos originales se mantienen intactos --- */
 #videoFeed, #snapshot {
-  width: 100%; /* Que la imagen/video ocupe todo el ancho disponible en el contenedor */
-  height: auto; /* Mantener la relación de aspecto */
-  max-height: 60vh; /* Aumentar el alto máximo para que se vea más grande */
-  border: 3px solid #F39C12; /* Orange accent */
+  width: 100%; 
+  height: auto; 
+  max-height: 60vh; 
+  border: 3px solid #F39C12;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  margin-top: 10px; /* Espacio entre el canvas y el video/snapshot */
-  object-fit: contain; /* Asegura que la imagen/video se ajuste sin cortarse */
+  margin-top: 10px; 
+  object-fit: contain; 
 }
 
-/* Detected emotion text styling */
 #emotionText {
-  font-size: 2.5rem; /* Ligeramente más pequeño si es necesario */
+  font-size: 2.5rem;
   font-weight: 600;
   color: #333;
-  margin-top: 15px; /* Más espacio por encima */
-  margin-bottom: 10px; /* Espacio por debajo */
+  margin-top: 15px;
+  margin-bottom: 10px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Face canvas styling (bigger for vertical displays) */
 #faceContainer {
-    position: relative; /* Necesario para que la superposición funcione */
+    position: relative;
     display: block;
-    width: 90%;      /* Ocupa el 90% del ancho */
-    height: 50vh;    /* Ocupa el 50% de la altura de la ventana */
-    margin: 1em auto; /* Lo centra en la página */
+    width: 90%;
+    height: 50vh;
+    margin: 1em auto;
 }
 
 #faceCanvas, #specialOverlay {
@@ -71,7 +69,6 @@ body {
     z-index: 10;
 }
 
-/* Video container styling (for the full-screen video) */
 #video-container {
   position: fixed;
   top: 0;
@@ -79,80 +76,20 @@ body {
   width: 100%;
   height: 100vh;
   background: #000;
-  display: none; /* Initially hidden */
+  display: none;
   justify-content: center;
   align-items: center;
   z-index: 1000;
 }
 
-/* Video element styling */
 #interactionVideo {
-  height: 100vh;      /* Always fills vertical space */
-  width: auto;        /* Maintain aspect ratio */
-  object-fit: contain; /* Ensure the entire video is visible */
+  height: 100vh;
+  width: auto;
+  object-fit: contain;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   border-radius: 8px;
 }
 
-/* ================================================= */
-/* ========= SECCIÓN DEL CARRUSEL MODIFICADA ========= */
-/* ================================================= */
-
-#carousel-container {
-  width: 100%;
-  max-width: 800px; /* Para que coincida con el #main-container */
-  height: calc(100vh / 7); 
-  background-color: rgba(230, 230, 230, 0.85); /* Fondo más opaco para legibilidad */
-  overflow: hidden; 
-  position: absolute; 
-  
-  /* --- 1. MÁS CERCA DE LA CÁMARA (DESDE ABAJO) --- */
-  /* Lo levantamos un 5% de la altura de la pantalla. Ajusta este valor si es necesario. */
-  bottom: 5%;
-  
-  /* Lo centramos horizontalmente, ya que ahora max-width afecta su posición */
-  left: 50%;
-  transform: translateX(-50%);
-  
-  border-top: 2px solid #F39C12; 
-  box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
-  border-radius: 8px; /* Bordes redondeados para consistencia */
-  
-  /* --- 2. ASEGURAR QUE ESTÉ ENCIMA DE TODO --- */
-  /* Un z-index alto lo pone por encima de otros elementos posicionados */
-  z-index: 50;
-}
-
-#carousel-track {
-  display: flex; 
-  height: 100%;
-}
-
-#carousel-track img {
-  height: 90%; 
-  width: auto; 
-  margin: 0 15px; 
-  object-fit: contain; 
-  border-radius: 5px;
-  flex-shrink: 0; 
-  align-self: center; 
-}
-
-/* Animación de desplazamiento (sin cambios) */
-@keyframes scroll {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-/* ================================================= */
-/* ================= FIN DE LA SECCIÓN ================= */
-/* ================================================= */
-
-/* Estilo para el comentario del botón de apagado */
 .power-button-comment {
   position: absolute;
   top: 20px; 
@@ -176,16 +113,68 @@ body {
   color: #333;
 }
 
+/* ================================================= */
+/* ========= SECCIÓN DEL CARRUSEL CORREGIDA ========= */
+/* ================================================= */
 
-/* Responsive adjustments for smaller screens */
+#carousel-container {
+  /* 1. SE EXPANDE AL ANCHO COMPLETO DE LA PANTALLA */
+  /* Usamos 'position: fixed' para que ignore el 'max-width' del contenedor principal */
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%; /* Ocupa el 100% del ancho de la ventana */
+
+  height: calc(100vh / 7); 
+  background-color: rgba(245, 242, 240, 0.85); /* Coincide con tu fondo pero semitransparente */
+  overflow: hidden; 
+  border-top: 2px solid #F39C12; 
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+  display: none; /* Oculto por defecto, se muestra con JS */
+  z-index: 50; /* Lo pone por encima de casi todo */
+}
+
+#carousel-track {
+  display: flex; 
+  height: 100%;
+  /* La animación se define abajo y se controla con JS */
+}
+
+#carousel-track img {
+  height: 90%; 
+  width: auto;
+  /* 2. ESPACIO CONSISTENTE ENTRE IMÁGENES */
+  margin: 0 20px; /* Aumentamos el margen para más espacio */
+  object-fit: contain; 
+  border-radius: 5px;
+  flex-shrink: 0; 
+  align-self: center; 
+}
+
+/* 3. ANIMACIÓN CORREGIDA Y FLEXIBLE */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* La distancia de desplazamiento ahora se calcula con JS y se pasa con una variable CSS */
+    transform: translateX(var(--scroll-width));
+  }
+}
+
+/* ================================================= */
+/* =============== FIN DE LA CORRECCIÓN =============== */
+/* ================================================= */
+
+
 @media (max-width: 768px) {
   #videoFeed, #snapshot {
     width: 100%;
     height: auto;
-    max-height: 50vh; /* Ajuste para pantallas más pequeñas */
+    max-height: 50vh;
   }
   #faceCanvas {
-    max-height: 35vh; /* Ajuste para pantallas más pequeñas */
+    max-height: 35vh;
   }
   #main-container {
     margin: 10px;
@@ -204,10 +193,5 @@ body {
   }
   .power-button-comment .arrow {
     font-size: 1.5em;
-  }
-  
-  /* Ajuste responsivo para el carrusel */
-  #carousel-container {
-    bottom: 2%; /* Un poco más abajo en pantallas pequeñas */
   }
 }
