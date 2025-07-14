@@ -94,6 +94,45 @@ body {
   border-radius: 8px;
 }
 
+#carousel-container {
+  width: 100%;
+  height: calc(100vh / 7); /* Ocupa 1/7 de la altura de la pantalla */
+  background-color: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente */
+  overflow: hidden; /* Oculta el desbordamiento de las imágenes */
+  position: absolute; /* Posición fija en la parte inferior */
+  bottom: 0;
+  left: 0;
+  border-top: 2px solid #F39C12; /* Borde superior naranja */
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+}
+
+#carousel-track {
+  display: flex; /* Coloca las imágenes una al lado de la otra */
+  height: 100%;
+  /* La animación se define en línea desde JavaScript */
+}
+
+#carousel-track img {
+  height: 90%; /* Las imágenes ocupan el 90% de la altura del carrusel */
+  width: auto; /* Ancho automático para mantener la proporción */
+  margin: 0 15px; /* Separación horizontal de 15px entre imágenes */
+  object-fit: contain; /* Asegura que la imagen completa sea visible */
+  border-radius: 5px;
+  flex-shrink: 0; /* Evita que las imágenes se encojan */
+  align-self: center; /* Centra verticalmente las imágenes */
+}
+
+/* Animación de desplazamiento */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    /* Mueve el track la mitad de su ancho (ya que duplicamos las imágenes) */
+    transform: translateX(-50%);
+  }
+}
+
 /* Estilo para el comentario del botón de apagado */
 .power-button-comment {
   position: absolute;

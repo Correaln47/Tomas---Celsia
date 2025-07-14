@@ -21,7 +21,11 @@
         <img id="snapshot" src="/snapshot" alt="Detected Snapshot">
         <p id="emotionText"></p>
       </div>
-
+      
+      <div id="carousel-container">
+        <div id="carousel-track">
+          </div>
+      </div>
       <div class="power-button-comment">
         <p>Botón de apagado <br> (detrás del robot)</p>
         <div class="arrow">⬇️</div>
@@ -34,5 +38,36 @@
     </div>
 
     <script src="/static/js/script.js"></script>
-  </body>
+    
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const track = document.getElementById('carousel-track');
+        // Usamos la nueva ruta del servidor de carga que ahora corre en el puerto 5002
+        fetch('http://' + window.location.hostname + ':5002/list_carousel_images')
+          .then(response => response.json())
+          .then(data => {
+            if (data.images && data.images.length > 0) {
+              // Duplicar las imágenes para un bucle infinito y suave
+              const images = [...data.images, ...data.images];
+              images.forEach(imageUrl => {
+                const imgElement = document.createElement('img');
+                // La URL ya viene completa desde el servidor
+                imgElement.src = 'http://' + window.location.hostname + ':5002' + imageUrl;
+                track.appendChild(imgElement);
+              });
+              // Ajustar la duración de la animación según la cantidad de imágenes
+              const animationDuration = data.images.length * 5; // 5 segundos por imagen
+              track.style.animation = `scroll ${animationDuration}s linear infinite`;
+            } else {
+                // Ocultar el carrusel si no hay imágenes
+                document.getElementById('carousel-container').style.display = 'none';
+            }
+          })
+          .catch(error => {
+              console.error('Error al cargar imágenes del carrusel:', error);
+              document.getElementById('carousel-container').style.display = 'none';
+          });
+      });
+    </script>
+    </body>
 </html>
