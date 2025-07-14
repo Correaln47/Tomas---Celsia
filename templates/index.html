@@ -51,46 +51,33 @@
             carouselContainer.style.display = 'block';
             track.innerHTML = '';
             const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
-            
-            // --- LÓGICA DE DUPLICACIÓN CORREGIDA ---
 
-            // 1. Crea dos sets de elementos <img>, uno para el original y otro para la copia.
-            const originalImages = imageFiles.map(url => {
+            // --- LÓGICA DE DUPLICACIÓN A PRUEBA DE ERRORES ---
+
+            // 1. Crea un contenedor para el primer set de imágenes.
+            const set1 = document.createElement('div');
+            imageFiles.forEach(url => {
                 const img = document.createElement('img');
                 img.src = uploadServerUrl + url;
-                return img;
+                set1.appendChild(img);
             });
-            
-            const clonedImages = imageFiles.map(url => {
+
+            // 2. Crea un contenedor para el segundo set (la copia).
+            const set2 = document.createElement('div');
+            imageFiles.forEach(url => {
                 const img = document.createElement('img');
                 img.src = uploadServerUrl + url;
-                return img;
+                set2.appendChild(img);
             });
 
-            // 2. Añade ambos sets al track. Ahora la pista siempre tiene el doble del contenido.
-            [...originalImages, ...clonedImages].forEach(img => {
-                track.appendChild(img);
-            });
-            
-            // 3. Calcula el ancho del primer set de imágenes.
-            //    Usamos un pequeño truco para asegurarnos de que el ancho se calcule correctamente.
-            setTimeout(() => {
-                let originalWidth = 0;
-                originalImages.forEach(img => {
-                    // El ancho de cada imagen + su margen horizontal (20px a cada lado)
-                    originalWidth += img.offsetWidth + 40; 
-                });
+            // 3. Añade ambos sets a la pista.
+            track.appendChild(set1);
+            track.appendChild(set2);
 
-                // 4. ANIMACIÓN PERFECTA
-                //    Establece la distancia exacta a desplazarse.
-                track.style.setProperty('--scroll-width', `-${originalWidth}px`);
-
-                //    La duración se basa en el ancho para una velocidad constante.
-                //    Ajusta el divisor para cambiar la velocidad (número más bajo = más rápido).
-                const animationDuration = originalWidth / 80; // Velocidad de 80 píxeles por segundo.
-                
-                track.style.animation = `scroll ${animationDuration}s linear infinite`;
-            }, 100); // Pequeña espera de 100ms para asegurar que las imágenes se rendericen.
+            // 4. Ajusta la duración de la animación según el número de imágenes para una velocidad agradable.
+            //    (Opcional, pero recomendado para que no vaya demasiado rápido o lento).
+            const animationDuration = imageFiles.length * 6; // 6 segundos por imagen, ajusta si es necesario.
+            track.style.animationDuration = animationDuration + 's';
 
         } else {
             console.log('No se encontraron imágenes para el carrusel.');
