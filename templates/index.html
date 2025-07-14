@@ -43,52 +43,39 @@
       document.addEventListener('DOMContentLoaded', function() {
         const carouselContainer = document.getElementById('carousel-container');
         const track = document.getElementById('carousel-track');
-        // El servidor donde están los archivos
-        const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
+        
+        // 1. Lee la lista de imágenes que Python inyectó con 'render_template'.
+        //    El filtro '|tojson' convierte la lista de Python en un array de JavaScript de forma segura.
+        const imageFiles = {{ image_files|tojson }};
 
-        // ### MODIFICADO: Apunta directamente al archivo JSON estático ###
-        const jsonUrl = uploadServerUrl + '/static/carousel_images/carousel_data.json';
+        console.log('Lista de imágenes para el carrusel recibida desde Python:', imageFiles);
 
-        console.log('Cargando lista de imágenes desde:', jsonUrl);
+        // 2. Comprueba si hay imágenes y construye el carrusel.
+        if (imageFiles && imageFiles.length > 0) {
+            
+            carouselContainer.style.display = 'block'; // Hace visible el contenedor
+            track.innerHTML = ''; // Limpia el contenido por si acaso
 
-        // Fetch para obtener el archivo JSON
-        fetch(jsonUrl)
-          .then(response => {
-            if (!response.ok) {
-              // Este error saltará si el archivo no se encuentra (404)
-              throw new Error(`No se pudo cargar el archivo de datos: ${response.statusText}`);
-            }
-            return response.json();
-          })
-          .then(data => {
-            console.log('Imágenes encontradas:', data.images);
+            // El servidor de carga (puerto 5002) es el que aloja las imágenes
+            const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
 
-            if (data.images && data.images.length > 0) {
-              track.innerHTML = ''; // Limpiar el carrusel
-              
-              // Duplicar imágenes para un bucle suave e infinito
-              const imagesToLoad = [...data.images, ...data.images];
-              
-              imagesToLoad.forEach(imageUrl => {
+            // Duplica la lista para un efecto de bucle infinito
+            const imagesToLoad = [...imageFiles, ...imageFiles];
+            
+            imagesToLoad.forEach(imageUrl => {
                 const imgElement = document.createElement('img');
-                // La URL completa se construye con el origen del servidor de archivos
-                imgElement.src = uploadServerUrl + imageUrl; 
+                // Construye la URL completa apuntando al servidor de carga
+                imgElement.src = uploadServerUrl + imageUrl;
                 track.appendChild(imgElement);
-              });
-              
-              const animationDuration = data.images.length * 5; // 5s por imagen
-              track.style.animation = `scroll ${animationDuration}s linear infinite`;
-              carouselContainer.style.display = 'block'; // Mostrar el carrusel
+            });
+            
+            const animationDuration = imageFiles.length * 5; // 5 segundos por imagen
+            track.style.animation = `scroll ${animationDuration}s linear infinite`;
 
-            } else {
-              console.log('No hay imágenes en el carrusel, se mantendrá oculto.');
-              carouselContainer.style.display = 'none';
-            }
-          })
-          .catch(error => {
-              console.error('Error al cargar el carrusel:', error);
-              carouselContainer.style.display = 'none';
-          });
+        } else {
+            console.log('No se encontraron imágenes para el carrusel.');
+            carouselContainer.style.display = 'none';
+        }
       });
     </script>
     </body>
