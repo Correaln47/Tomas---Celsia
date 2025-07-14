@@ -52,32 +52,49 @@
             track.innerHTML = '';
             const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
 
-            // --- LÓGICA DE DUPLICACIÓN A PRUEBA DE ERRORES ---
+            // --- LÓGICA DE LLENADO Y DUPLICACIÓN ---
 
-            // 1. Crea un contenedor para el primer set de imágenes.
-            const set1 = document.createElement('div');
+            // 1. Crear un fragmento de documento para añadir todas las imágenes de una vez (más eficiente)
+            const fragment = document.createDocumentFragment();
+            let originalImages = [];
+
             imageFiles.forEach(url => {
                 const img = document.createElement('img');
                 img.src = uploadServerUrl + url;
-                set1.appendChild(img);
+                originalImages.push(img);
+                fragment.appendChild(img);
             });
 
-            // 2. Crea un contenedor para el segundo set (la copia).
-            const set2 = document.createElement('div');
-            imageFiles.forEach(url => {
-                const img = document.createElement('img');
-                img.src = uploadServerUrl + url;
-                set2.appendChild(img);
-            });
+            // 2. Añadir el primer set de imágenes al track para poder medir su ancho
+            track.appendChild(fragment);
 
-            // 3. Añade ambos sets a la pista.
-            track.appendChild(set1);
-            track.appendChild(set2);
+            // 3. Esperar un momento para que el navegador renderice y calcule los anchos
+            setTimeout(() => {
+                // Calcular el ancho total del set original de imágenes
+                const trackWidth = track.scrollWidth;
+                const screenWidth = window.innerWidth;
 
-            // 4. Ajusta la duración de la animación según el número de imágenes para una velocidad agradable.
-            //    (Opcional, pero recomendado para que no vaya demasiado rápido o lento).
-            const animationDuration = imageFiles.length * 6; // 6 segundos por imagen, ajusta si es necesario.
-            track.style.animationDuration = animationDuration + 's';
+                // Calcular cuántas veces necesitamos duplicar el contenido para llenar la pantalla
+                // y tener suficiente para un bucle suave.
+                const repeatsNeeded = Math.ceil(screenWidth / trackWidth) + 1;
+
+                // 4. Clonar y añadir los sets de imágenes necesarios
+                for (let i = 0; i < repeatsNeeded; i++) {
+                    originalImages.forEach(img => {
+                        track.appendChild(img.cloneNode(true));
+                    });
+                }
+                
+                // 5. Establecer la duración de la animación para una velocidad constante
+                //    (Ancho total de la pista / píxeles por segundo)
+                const finalWidth = track.scrollWidth;
+                const speed = 80; // 80 píxeles por segundo, puedes ajustar este valor
+                const animationDuration = finalWidth / speed;
+
+                track.style.animationDuration = animationDuration + 's';
+                // La animación 'scroll' del CSS se encargará del resto
+
+            }, 100); // 100ms de espera
 
         } else {
             console.log('No se encontraron imágenes para el carrusel.');
