@@ -1,190 +1,150 @@
-/* Global Styles */
 body {
   margin: 0;
   padding: 0;
-  /*background: #FF7900; /* Color Naranja */
-  background: #f5f2f0;
-  font-family: Arial, sans-serif;
-  overflow: hidden; /* Prevent scrolling */
-  display: flex; /* Usar flexbox para centrar contenido verticalmente si es necesario */
+  /* Tu color de fondo ha sido aplicado aquí */
+  background: #f5f2f0; 
+  /* Color de texto oscuro para que contraste con el fondo claro */
+  color: #333; 
+  font-family: 'Arial', sans-serif;
+  overflow: hidden; /* Evita barras de scroll en la página principal */
+}
+
+#main-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#videoFeed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
+
+#faceContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh; /* Asegura que ocupe al menos el alto de la ventana */
 }
 
-/* Main container styling */
-#main-container {
-  width: 100%;
-  max-width: 800px; /* Limita el ancho máximo para pantallas grandes */
-  height: 100vh; /* Permitir que flex items controlen el alto */
-  display: flex;
-  flex-direction: column; /* Cambiado a column para que los items fluyan normalmente */
-  align-items: center;
-  justify-content: flex-start; /* Alinear items al inicio del contenedor flex */
-  padding: 20px;
-  box-sizing: border-box; /* Incluir padding en el tamaño total */
-  position: relative; /* Necesario para posicionar el comentario del botón de apagado */
-  overflow-y: auto; /* Permitir scroll si el contenido excede el alto */
-}
-
-/* Video feed and snapshot styling with orange accents */
-#videoFeed, #snapshot {
-  width: 100%; /* Que la imagen/video ocupe todo el ancho disponible en el contenedor */
-  height: auto; /* Mantener la relación de aspecto */
-  max-height: 60vh; /* Aumentar el alto máximo para que se vea más grande */
-  border: 3px solid #F39C12; /* Orange accent */
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  margin-top: 10px; /* Espacio entre el canvas y el video/snapshot */
-  object-fit: contain; /* Asegura que la imagen/video se ajuste sin cortarse */
-}
-
-/* Detected emotion text styling */
-#emotionText {
-  font-size: 2.5rem; /* Ligeramente más pequeño si es necesario */
-  font-weight: 600;
-  color: #333;
-  margin-top: 15px; /* Más espacio por encima */
-  margin-bottom: 10px; /* Espacio por debajo */
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* Face canvas styling (bigger for vertical displays) */
-#faceContainer {
-    position: relative; /* Necesario para que la superposición funcione */
-    display: block;
-    width: 90%;      /* Ocupa el 90% del ancho */
-    height: 50vh;    /* Ocupa el 50% de la altura de la ventana */
-    margin: 1em auto; /* Lo centra en la página */
-}
-
-#faceCanvas, #specialOverlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+#faceCanvas {
+  position: absolute;
 }
 
 #specialOverlay {
-    display: none;
-    object-fit: cover;
-    z-index: 10;
+  position: absolute;
+  max-width: 90%;
+  max-height: 90%;
+  display: none;
+  z-index: 10;
 }
 
-/* Video container styling (for the full-screen video) */
+#snapshot-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(255, 255, 255, 0.8); /* Fondo más claro para el nuevo diseño */
+  border: 2px solid #FF7900; /* Borde Naranja */
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+#snapshot {
+  width: 160px;
+  height: 120px;
+  border-radius: 8px;
+}
+
+#emotionText {
+  margin-top: 10px;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #FF7900; /* Mantenemos el color naranja que resalta bien */
+  text-transform: uppercase;
+}
+
+.power-button-comment {
+  position: absolute;
+  bottom: calc((100vh / 7) + 20px); /* Ajustado para estar encima del carrusel */
+  left: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.arrow {
+  font-size: 1.5em;
+  margin-top: 5px;
+  color: #FF7900;
+}
+
 #video-container {
+  display: none;
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100vh;
-  background: #000;
-  display: none; /* Initially hidden */
+  height: 100%;
+  background-color: rgba(0,0,0,0.9);
+  z-index: 100;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
 }
 
-/* Video element styling */
 #interactionVideo {
-  height: 100vh;       /* Always fills vertical space */
-  width: auto;         /* Maintain aspect ratio */
-  object-fit: contain; /* Ensure the entire video is visible */
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  border-radius: 8px;
+  max-width: 90%;
+  max-height: 90%;
+  border: 3px solid #FF7900;
+  border-radius: 10px;
 }
 
+/* ESTILOS DEL CARRUSEL */
 #carousel-container {
   width: 100%;
-  height: calc(100vh / 7); /* Ocupa 1/7 de la altura de la pantalla */
-  background-color: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente */
-  overflow: hidden; /* Oculta el desbordamiento de las imágenes */
-  position: absolute; /* Posición fija en la parte inferior */
+  height: calc(100vh / 7);
+  background-color: rgba(255, 255, 255, 0.5); /* Fondo claro semitransparente */
+  overflow: hidden;
+  position: absolute;
   bottom: 0;
   left: 0;
-  border-top: 2px solid #F39C12; /* Borde superior naranja */
+  border-top: 2px solid #FF7900;
   box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+  display: none; 
 }
 
 #carousel-track {
-  display: flex; /* Coloca las imágenes una al lado de la otra */
+  display: flex;
   height: 100%;
-  /* La animación se define en línea desde JavaScript */
+  will-change: transform;
 }
 
 #carousel-track img {
-  height: 90%; /* Las imágenes ocupan el 90% de la altura del carrusel */
-  width: auto; /* Ancho automático para mantener la proporción */
-  margin: 0 15px; /* Separación horizontal de 15px entre imágenes */
-  object-fit: contain; /* Asegura que la imagen completa sea visible */
+  height: 90%;
+  width: auto;
+  margin: 0 15px;
+  object-fit: contain;
   border-radius: 5px;
-  flex-shrink: 0; /* Evita que las imágenes se encojan */
-  align-self: center; /* Centra verticalmente las imágenes */
+  flex-shrink: 0;
+  align-self: center;
 }
 
-/* Animación de desplazamiento */
 @keyframes scroll {
   from {
     transform: translateX(0);
   }
   to {
-    /* Mueve el track la mitad de su ancho (ya que duplicamos las imágenes) */
-    transform: translateX(-50%);
-  }
-}
-
-/* Estilo para el comentario del botón de apagado */
-.power-button-comment {
-  position: absolute;
-  top: 20px; /* Ajusta según sea necesario */
-  right: 20px; /* Ajusta según sea necesario */
-  background-color: rgba(255, 255, 255, 0.8);
-  padding: 10px;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  text-align: center;
-  z-index: 10; /* Asegura que esté por encima de otros elementos */
-}
-
-.power-button-comment p {
-  margin: 0 0 5px 0;
-  font-size: 0.9em;
-}
-
-.power-button-comment .arrow {
-  font-size: 2em;
-  line-height: 1;
-  color: #333;
-}
-
-
-/* Responsive adjustments for smaller screens */
-@media (max-width: 768px) {
-  #videoFeed, #snapshot {
-    width: 100%;
-    height: auto;
-    max-height: 50vh; /* Ajuste para pantallas más pequeñas */
-  }
-  #faceCanvas {
-    max-height: 35vh; /* Ajuste para pantallas más pequeñas */
-  }
-  #main-container {
-    margin: 10px;
-    padding: 10px;
-  }
-  #emotionText {
-    font-size: 2rem;
-  }
-  .power-button-comment {
-    top: 10px;
-    right: 10px;
-    padding: 8px;
-  }
-  .power-button-comment p {
-    font-size: 0.8em;
-  }
-  .power-button-comment .arrow {
-    font-size: 1.5em;
+    transform: translateX(var(--scroll-width, -2000px));
   }
 }
