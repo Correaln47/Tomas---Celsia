@@ -26,8 +26,8 @@
       width: 100%;
       max-width: 500px; 
     }
-    h2 {
-      margin-bottom: 20px;
+    h2, h3 {
+      text-align: center;
       color: #333;
     }
     .robot-orientation {
@@ -47,8 +47,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start; /* Alinea la flecha arriba */
-      padding-top: 10px; /* Espacio para la flecha */
+      justify-content: flex-start;
+      padding-top: 10px;
       box-sizing: border-box;
     }
     .robot-body .arrow-up { 
@@ -61,7 +61,6 @@
         color: white;
         margin-top: 10px; 
     }
-
     .control-grid {
       display: grid;
       grid-template-areas:
@@ -118,42 +117,42 @@
       margin-bottom: 20px;
       max-width: 90%;
     }
-
-    .video-controls {
+    .controls-section {
       margin-top: 20px;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 10px;
       width: 100%;
-      padding: 10px;
+      padding: 15px;
       background-color: #e0e0e0;
-      border-radius: 5px;
+      border-radius: 8px;
     }
-     .video-controls h3 {
+     .controls-section h3 {
         margin-top: 0;
         margin-bottom: 15px;
-        color: #333;
     }
-    .video-controls > div { /* Estilo para el div que contiene label y select */
+    .controls-section > div {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
         width: 100%;
-        max-width: 350px; /* Ancho máximo para el selector y etiqueta */
-        margin-bottom: 10px;
+        max-width: 380px;
+        margin-bottom: 12px;
     }
-    .video-controls label {
+    .controls-section label {
         margin-right: 10px;
         font-size: 0.95em;
+        flex-shrink: 0;
     }
-    .video-controls select {
+    .controls-section select, .controls-section input[type="number"] {
         padding: 8px;
         border-radius: 4px;
         border: 1px solid #ccc;
-        flex-grow: 1; /* Para que el select ocupe el espacio disponible */
+        flex-grow: 1;
+        min-width: 80px;
     }
-    .video-controls button {
+    .controls-section button {
       padding: 10px 15px;
       font-size: 1em;
       color: white;
@@ -161,42 +160,63 @@
       border-radius: 5px;
       cursor: pointer;
       transition: background-color 0.2s;
-      min-width: 220px; /* Ancho mínimo para los botones */
+      min-width: 220px;
     }
-    #button-play-video {
-      background-color: #4CAF50; /* Verde */
-    }
-    #button-play-video:hover {
-      background-color: #45a049;
-    }
-    #button-skip-video {
-      background-color: #f44336; /* Rojo */
-    }
-    #button-skip-video:hover {
-      background-color: #da190b;
-    }
+    #button-play-video { background-color: #4CAF50; }
+    #button-play-video:hover { background-color: #45a049; }
+    #button-skip-video { background-color: #f44336; }
+    #button-skip-video:hover { background-color: #da190b; }
 
+    /* Estilos para el interruptor (toggle switch) */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+    .switch input { 
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #2196F3;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    
     @media (max-width: 400px) {
         .control-button {
-            width: 75px;
-            height: 75px;
-            font-size: 16px;
+            width: 75px; height: 75px; font-size: 16px;
         }
-        #button-stop {
-            width: 60px;
-            height: 60px;
-        }
-        .robot-orientation {
-            width: 100px;
-        }
-        .robot-body {
-            width: 70px;
-            height: 100px;
-        }
+        #button-stop { width: 60px; height: 60px; }
+        .robot-orientation { width: 100px; }
+        .robot-body { width: 70px; height: 100px; }
         .robot-body .arrow-up { font-size: 24px; }
-        .video-controls button {
-            min-width: 180px;
-        }
+        .controls-section button { min-width: 180px; }
     }
   </style>
 </head>
@@ -220,11 +240,10 @@
     </div>
 
     <div class="info-text">
-      <p>La flecha ▲ en el control de arriba indica el frente del robot. Presione los botones de dirección para mover el robot con respecto a su orientación.</p>
-      <p><strong>Importante:</strong> Si se presionan dos botones de movimiento simultáneamente, solo se registrará el primero que se toque. Para un funcionamiento óptimo, presione solo un botón a la vez.</p>
+      <p>La flecha ▲ indica el frente del robot. Presione los botones para mover el robot con respecto a su orientación.</p>
     </div>
 
-    <div class="video-controls">
+    <div class="controls-section video-controls">
       <h3>Control de Video Interactivo</h3>
       <div>
           <label for="video-select">Seleccionar Video:</label>
@@ -235,9 +254,34 @@
       <button id="button-play-video">▶️ Iniciar Video Seleccionado</button>
       <button id="button-skip-video">⏭️ Saltar Video Actual / Reiniciar</button>
     </div>
+
+    <div class="controls-section special-event-controls">
+        <h3>Control de Evento Aleatorio</h3>
+        <div>
+            <label for="event-toggle">Activar Evento Aleatorio:</label>
+            <label class="switch">
+                <input type="checkbox" id="event-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div>
+            <label for="initial-delay">Retardo Inicial (ms):</label>
+            <input type="number" id="initial-delay" value="1000" min="0" step="100">
+        </div>
+        <div>
+            <label for="move-duration">Duración Movimiento (ms):</label>
+            <input type="number" id="move-duration" value="500" min="100" step="100">
+        </div>
+        <div>
+            <label for="delay-between">Pausa entre Mov. (ms):</label>
+            <input type="number" id="delay-between" value="500" min="0" step="100">
+        </div>
+    </div>
+
   </div>
 
   <script>
+    // --- Selectores de Elementos ---
     const buttons = {
         forward: document.getElementById('button-forward'),
         backward: document.getElementById('button-backward'),
@@ -245,12 +289,19 @@
         right: document.getElementById('button-right'),
         stop: document.getElementById('button-stop')
     };
-
     const videoSelect = document.getElementById('video-select');
     const playVideoButton = document.getElementById('button-play-video');
     const skipVideoButton = document.getElementById('button-skip-video');
 
-    const mainAppUrl = `http://${window.location.hostname}:5000`; // Asume app.py en puerto 5000
+    // --- NUEVO: Selectores para el evento aleatorio ---
+    const eventToggle = document.getElementById('event-toggle');
+    const initialDelayInput = document.getElementById('initial-delay');
+    const moveDurationInput = document.getElementById('move-duration');
+    const delayBetweenInput = document.getElementById('delay-between');
+
+    const mainAppUrl = `http://${window.location.hostname}:5000`;
+
+    // --- Funciones de Comunicación con el Servidor ---
 
     function sendMoveCommand(command) {
       fetch("/control", { 
@@ -259,10 +310,8 @@
         body: JSON.stringify({ command: command })
       })
       .then(response => {
-        if (!response.ok) console.error("Move command failed with status: " + response.status);
-        return response.json();
+        if (!response.ok) console.error("Move command failed: " + response.status);
       })
-      .then(data => console.log("Move response:", data))
       .catch(error => console.error("Error sending move command:", error));
     }
 
@@ -272,39 +321,61 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})
       })
-      .then(response => {
-        if (!response.ok) console.error("Stop command failed with status: " + response.status);
-        return response.json();
-      })
-      .then(data => console.log("Stop Response:", data))
       .catch(error => console.error("Error stopping:", error));
     }
 
+    // --- NUEVO: Función para enviar la configuración del evento ---
+    function sendEventConfig() {
+        const config = {
+            enabled: eventToggle.checked,
+            initial_delay: parseInt(initialDelayInput.value, 10),
+            move_duration: parseInt(moveDurationInput.value, 10),
+            delay_between: parseInt(delayBetweenInput.value, 10)
+        };
+        
+        fetch("/config_special_event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(config)
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Config saved:", data.message);
+        })
+        .catch(error => console.error("Error saving config:", error));
+    }
+
+    // --- NUEVO: Función para cargar la configuración actual ---
+    async function fetchEventConfig() {
+        try {
+            const response = await fetch("/get_special_event_config");
+            if (!response.ok) throw new Error("Failed to fetch config");
+            const config = await response.json();
+            
+            eventToggle.checked = config.enabled;
+            initialDelayInput.value = config.initial_delay;
+            moveDurationInput.value = config.move_duration;
+            delayBetweenInput.value = config.delay_between;
+        } catch (error) {
+            console.error("Error fetching initial config:", error);
+        }
+    }
+
+    // --- Lógica de los botones de movimiento (sin cambios) ---
     ['forward', 'backward', 'left', 'right'].forEach(direction => {
-      const button = buttons[direction];
-      if (button) {
-        const startEvent = () => sendMoveCommand(direction);
-        // Touchstart y Mousedown para iniciar
-        button.addEventListener('mousedown', startEvent);
-        button.addEventListener('touchstart', (e) => {
-            e.preventDefault(); 
-            startEvent();
-        }, { passive: false });
-
-        // Mouseup, Touchend, Mouseleave, Touchcancel para detener
-        button.addEventListener('mouseup', sendStopCommand);
-        button.addEventListener('mouseleave', sendStopCommand); 
-        button.addEventListener('touchend', (e) => {
-             e.preventDefault();
-             sendStopCommand();
-        });
-        button.addEventListener('touchcancel', (e) => { 
-             e.preventDefault();
-             sendStopCommand();
-        });
-      }
+        const button = buttons[direction];
+        if (button) {
+            const startEvent = () => sendMoveCommand(direction);
+            button.addEventListener('mousedown', startEvent);
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault(); 
+                startEvent();
+            }, { passive: false });
+            
+            const stopEvents = ['mouseup', 'mouseleave', 'touchend', 'touchcancel'];
+            stopEvents.forEach(event => button.addEventListener(event, sendStopCommand));
+        }
     });
-
     if (buttons.stop) {
         buttons.stop.addEventListener('click', sendStopCommand);
         buttons.stop.addEventListener('touchstart', (e) => {
@@ -313,37 +384,30 @@
         }, { passive: false });
     }
 
+    // --- Lógica de controles de video (sin cambios) ---
     async function fetchVideoList() {
         try {
             const response = await fetch(`${mainAppUrl}/list_videos`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
             const data = await response.json();
             videoSelect.innerHTML = '<option value="">-- Selecciona un video --</option>'; 
             if (data.videos && data.videos.length > 0) {
                 data.videos.forEach(videoFile => {
                     const option = document.createElement('option');
-                    option.value = videoFile; // El valor será el nombre del archivo
-                    option.textContent = videoFile.split('.')[0].replace(/_/g, ' ').replace(/-/g, ' '); // Nombre más legible
+                    option.value = videoFile;
+                    option.textContent = videoFile.split('.')[0].replace(/_/g, ' ');
                     videoSelect.appendChild(option);
                 });
             } else {
-                videoSelect.innerHTML = '<option value="">No hay videos disponibles</option>';
+                videoSelect.innerHTML = '<option value="">No hay videos</option>';
             }
         } catch (error) {
             console.error("Error fetching video list:", error);
-            videoSelect.innerHTML = '<option value="">Error al cargar videos</option>';
+            videoSelect.innerHTML = '<option value="">Error al cargar</option>';
         }
     }
-
     async function playSelectedVideo() {
         const selectedVideoFile = videoSelect.value;
-        if (!selectedVideoFile) {
-            alert("Por favor, selecciona un video de la lista.");
-            return;
-        }
-        console.log("Requesting to play video:", selectedVideoFile);
+        if (!selectedVideoFile) return alert("Por favor, selecciona un video.");
         try {
             const response = await fetch(`${mainAppUrl}/play_specific_video`, {
                 method: "POST",
@@ -351,40 +415,33 @@
                 body: JSON.stringify({ video_file: selectedVideoFile })
             });
             const data = await response.json();
-            console.log("Play video response:", data);
-            if(data.status === "ok" || data.message) {
-                 alert(data.message || `Solicitud para reproducir ${selectedVideoFile} enviada.`);
-            } else {
-                alert(data.error || "Error al intentar reproducir el video.");
-            }
+            alert(data.message || data.error || "Respuesta desconocida del servidor.");
         } catch (error) {
-            console.error("Error playing selected video:", error);
-            alert("Error de comunicación al intentar reproducir el video.");
+            alert("Error de comunicación al reproducir el video.");
         }
     }
-
     async function skipCurrentVideo() {
-        console.log("Requesting to skip video / restart interaction");
         try {
-            const response = await fetch(`${mainAppUrl}/restart`); 
-            const data = await response.json();
-            console.log("Skip video response:", data);
-            alert("Señal de reinicio enviada. La interacción principal debería recomenzar.");
+            await fetch(`${mainAppUrl}/restart`); 
+            alert("Señal de reinicio enviada.");
         } catch (error) {
-            console.error("Error skipping video:", error);
-            alert("Error de comunicación al intentar saltar el video.");
+            alert("Error de comunicación al reiniciar.");
         }
     }
+    if (playVideoButton) playVideoButton.addEventListener('click', playSelectedVideo);
+    if (skipVideoButton) skipVideoButton.addEventListener('click', skipCurrentVideo);
 
-    if (playVideoButton) {
-        playVideoButton.addEventListener('click', playSelectedVideo);
-    }
-    if (skipVideoButton) {
-        skipVideoButton.addEventListener('click', skipCurrentVideo);
-    }
-
+    // --- Inicialización ---
     document.addEventListener('DOMContentLoaded', () => {
         fetchVideoList();
+        // --- NUEVO: Cargar la configuración del evento al iniciar ---
+        fetchEventConfig();
+
+        // --- NUEVO: Añadir listeners para guardar la configuración al cambiar ---
+        eventToggle.addEventListener('change', sendEventConfig);
+        initialDelayInput.addEventListener('change', sendEventConfig);
+        moveDurationInput.addEventListener('change', sendEventConfig);
+        delayBetweenInput.addEventListener('change', sendEventConfig);
     });
   </script>
 </body>

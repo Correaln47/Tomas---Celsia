@@ -8,9 +8,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const videoContainer = document.getElementById('video-container');
     const interactionVideo = document.getElementById('interactionVideo');
     const ctx = faceCanvas.getContext('2d');
-    // --- MODIFICADO: Elementos para el evento especial ---
     const specialOverlay = document.getElementById('specialOverlay');
-    const specialVideo = document.getElementById('specialVideo'); // Se reemplaza el audio por el video
+    const specialVideo = document.getElementById('specialVideo');
 
 
     // --- Variables de Estado ---
@@ -22,7 +21,6 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioAnalyser = null;
     let audioDataArray = null;
     let isAnalyserReady = false;
-    // --- Flag de estado para el evento especial ---
     let isSpecialEventActive = false;
 
 
@@ -75,15 +73,11 @@ document.addEventListener("DOMContentLoaded", function() {
         } else if (emotion === "happy") {
             startAngle = 0;
             endAngle = Math.PI;
-            adjustedMouthRadiusY = baseMouthRadiusY;
             drawStroke = true;
-            ctx.strokeStyle = "red";
         } else if (emotion === "sad") {
             startAngle = Math.PI;
             endAngle = 0;
-            adjustedMouthRadiusY = baseMouthRadiusY;
             drawStroke = true;
-            ctx.strokeStyle = "blue";
         } else if (emotion === "surprise") {
             startAngle = 0;
             endAngle = Math.PI * 2;
@@ -95,13 +89,11 @@ document.addEventListener("DOMContentLoaded", function() {
             endAngle = Math.PI;
             adjustedMouthRadiusY = baseMouthRadiusY * 0.2;
             drawStroke = true;
-            ctx.strokeStyle = "darkred";
         } else {
             startAngle = 0;
             endAngle = Math.PI;
             adjustedMouthRadiusY = baseMouthRadiusY * 0.1;
             drawStroke = true;
-            ctx.strokeStyle = "black";
         }
         ctx.ellipse(mouthCenterX, mouthCenterY, adjustedMouthRadiusX, adjustedMouthRadiusY, 0, startAngle, endAngle);
         if (drawFill) ctx.fill();
@@ -116,9 +108,6 @@ document.addEventListener("DOMContentLoaded", function() {
         if (audioContext.state === 'suspended') {
             audioContext.resume();
         }
-        if (audioAnalyser) {
-            audioAnalyser.disconnect();
-        }
         try {
             const source = audioContext.createMediaElementSource(audioElement);
             audioAnalyser = audioContext.createAnalyser();
@@ -129,27 +118,21 @@ document.addEventListener("DOMContentLoaded", function() {
             isAnalyserReady = true;
         } catch (e) {
             console.error("JS: Error setting up audio analyser:", e);
-            audioAnalyser = null;
-            audioDataArray = null;
             isAnalyserReady = false;
         }
     }
 
     function getAverageAmplitude() {
-        if (!isAnalyserReady || !audioDataArray) {
-            return 0;
-        }
+        if (!isAnalyserReady || !audioDataArray) return 0;
         audioAnalyser.getByteFrequencyData(audioDataArray);
         const lowerHalf = audioDataArray.slice(0, audioDataArray.length / 2);
         const average = lowerHalf.reduce((sum, value) => sum + value, 0) / lowerHalf.length;
-        const normalizedAmplitude = average / 255;
-        return normalizedAmplitude;
+        return average / 255;
     }
 
     function animateFace() {
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
-        const mouthState = isAudioPlaying ? "talking" : currentEmotion;
-        // No dibujar la cara si el evento especial o el video grande están activos
+        const mouthState = isAudioPlaying ? "talking" : "neutral";
         if (videoContainer.style.display !== "flex" && !isSpecialEventActive) {
             drawFace(currentEmotion, mouthState, amplitude);
         } else {
@@ -159,28 +142,21 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     async function playAudio(url) {
-        console.log("JS: Attempting to play audio:", url);
         return new Promise((resolve, reject) => {
             const audio = new Audio(url);
             setupAudioAnalyser(audio);
-            audio.onplay = () => {
-                console.log("JS: Audio started playing:", url);
-                isAudioPlaying = true;
-            };
+            audio.onplay = () => { isAudioPlaying = true; };
             audio.onended = () => {
-                console.log("JS: Audio ended:", url);
                 isAudioPlaying = false;
                 isAnalyserReady = false;
                 resolve();
             };
             audio.onerror = (e) => {
-                console.error("JS: Audio error:", url, e);
                 isAudioPlaying = false;
                 isAnalyserReady = false;
                 reject(e);
             };
             audio.play().catch(e => {
-                console.error("JS: Error starting audio playback:", url, e);
                 isAudioPlaying = false;
                 isAnalyserReady = false;
                 reject(e);
@@ -188,346 +164,184 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-
     // --- Lógica Principal de Interacción ---
 
     function pollDetectionStatus() {
-        // Pausar el polling si el evento especial está activo
-        if (isSpecialEventActive) {
-            console.log("JS: Special event active, polling paused.");
-            return;
-        }
+        if (isSpecialEventActive) return;
 
         fetch('/detection_status').then(res => {
             if (!res.ok) {
                 console.error(`JS: HTTP error! status: ${res.status}`);
-                currentEmotion = "neutral";
-                if (videoContainer.style.display !== "flex") {
-                    document.getElementById('main-container').style.display = "flex";
-                    videoContainer.style.display = "none";
-                    videoFeed.style.display = "block";
-                    snapshotContainer.style.display = "none";
-                    emotionText.innerText = "Error de conexión...";
-                }
+                // Simplified error handling
                 return null;
             }
             return res.json();
         }).then(data => {
-            if (data === null) {
-                return;
-            }
-            if (data.restart_requested && interactionVideo && interactionVideo.paused === false) {
-                console.log("JS: Restart requested from server while video playing. Stopping video and restarting interaction.");
+            if (!data) return;
+
+            if (data.restart_requested) {
                 restartInteraction();
                 return;
             }
+
             if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
-                console.log("JS: FORCED VIDEO received:", data.forced_video);
                 currentForcedVideoProcessed = data.forced_video;
-                document.getElementById('main-container').style.display = "none";
-                videoContainer.style.display = "flex";
-                videoFeed.style.display = "none";
                 const videoUrl = `/static/video/${data.forced_video}`;
                 playSpecificVideo(videoUrl);
                 return;
             }
+
             if (!currentForcedVideoProcessed) {
-                if (data.detected && !isAudioPlaying && interactionVideo.paused !== false) {
+                if (data.detected && !isAudioPlaying && interactionVideo.paused) {
                     currentEmotion = data.emotion;
-                    console.log("JS: DETECTION complete. Emotion:", currentEmotion);
-                    document.getElementById('main-container').style.display = "flex";
-                    videoContainer.style.display = "none";
                     videoFeed.style.display = "none";
                     snapshotContainer.style.display = "block";
                     snapshotImg.src = "/snapshot?" + new Date().getTime();
                     emotionText.innerText = "Emoción: " + currentEmotion.toUpperCase();
-                    drawFace(currentEmotion, currentEmotion, 0);
-                    console.log("JS: Triggering audio based on detection.");
                     triggerAudio(currentEmotion);
-                } else if (!data.detected) {
-                    currentEmotion = "neutral";
-                    if (videoContainer.style.display !== "flex") {
-                        console.log("JS: Detection not complete, restoring main UI to video feed.");
-                        document.getElementById('main-container').style.display = "flex";
-                        videoContainer.style.display = "none";
-                        videoFeed.style.display = "block";
-                        snapshotContainer.style.display = "none";
-                        emotionText.innerText = "";
-                    }
+                } else if (!data.detected && snapshotContainer.style.display !== 'none') {
+                    videoFeed.style.display = "block";
+                    snapshotContainer.style.display = "none";
+                    emotionText.innerText = "";
                 }
-            } else {
-                console.log("JS: Processing forced video, skipping normal detection logic.");
             }
         }).catch(err => {
             console.error("JS: Error polling detection status:", err);
-            currentEmotion = "neutral";
-            if (videoContainer.style.display !== "flex") {
-                document.getElementById('main-container').style.display = "flex";
-                videoContainer.style.display = "none";
-                videoFeed.style.display = "block";
-                snapshotContainer.style.display = "none";
-                emotionText.innerText = "Error de comunicación...";
-            }
         });
     }
 
     function triggerAudio(emotion) {
-        // No disparar audio si el evento especial está activo
-        if (isSpecialEventActive) return;
-
-        if (isAudioPlaying) {
-            console.log("JS: Audio already playing, skipping new audio trigger.");
-            return;
-        }
-        const audioEmotion = emotion === "disgust" || emotion === "no_face" || !emotion ? "neutral" : emotion;
-        console.log(`JS: Attempting to fetch audio for emotion: ${audioEmotion}`);
-        fetch(`/get_random_audio?emotion=${audioEmotion}`).then(res => {
-            if (!res.ok) {
-                console.error(`JS: HTTP error fetching audio: ${res.status}`);
-                if (!currentForcedVideoProcessed) {
-                    console.log("JS: Failed to get audio, triggering video directly.");
-                    triggerVideo();
+        if (isSpecialEventActive || isAudioPlaying) return;
+        
+        const audioEmotion = ["disgust", "no_face"].includes(emotion) || !emotion ? "neutral" : emotion;
+        fetch(`/get_random_audio?emotion=${audioEmotion}`)
+            .then(res => res.ok ? res.json() : Promise.reject(res.status))
+            .then(data => {
+                if (data.audio_url) {
+                    playAudio(data.audio_url)
+                        .then(() => !currentForcedVideoProcessed && triggerVideo())
+                        .catch(() => !currentForcedVideoProcessed && triggerVideo());
                 } else {
-                    console.log("JS: Failed to get audio, but forced video active, skipping video trigger.");
-                    restartInteraction();
-                }
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-        }).then(data => {
-            if (data.audio_url) {
-                console.log("JS: Audio URL received:", data.audio_url);
-                playAudio(data.audio_url).then(() => {
-                    if (!currentForcedVideoProcessed) {
-                        console.log("JS: Audio finished, triggering random video.");
-                        triggerVideo();
-                    } else {
-                        console.log("JS: Audio finished, but forced video active, skipping triggerVideo.");
-                    }
-                }).catch(err => {
-                    console.error("JS: Error playAudio promise:", err);
-                    if (!currentForcedVideoProcessed) {
-                        console.log("JS: Audio failed during playback, triggering video directly.");
-                        triggerVideo();
-                    } else {
-                        console.log("JS: Audio failed during playback, but forced video active, skipping video trigger.");
-                        restartInteraction();
-                    }
-                });
-            } else {
-                console.error("JS: No audio_url received for emotion:", audioEmotion, data);
-                if (!currentForcedVideoProcessed) {
-                    console.log("JS: No audio URL, triggering video directly.");
                     triggerVideo();
-                } else {
-                    console.log("JS: No audio URL, but forced video active, skipping video trigger.");
-                    restartInteraction();
                 }
-            }
-        }).catch(err => {
-            console.error("JS: Error fetching audio URL:", err);
-            if (!currentForcedVideoProcessed) {
-                console.log("JS: Fetch audio failed, triggering video directly.");
-                triggerVideo();
-            } else {
-                console.log("JS: Fetch audio failed, but forced video active, skipping video trigger.");
-                restartInteraction();
-            }
-        });
+            }).catch(() => !currentForcedVideoProcessed && triggerVideo());
     }
 
     function triggerVideo() {
-        // No disparar video si el evento especial está activo
-        if (isSpecialEventActive) return;
+        if (isSpecialEventActive || currentForcedVideoProcessed) return;
 
-        if (currentForcedVideoProcessed) {
-            console.log("JS: Forced video is active, NOT triggering random video.");
-            return;
-        }
-        console.log("JS: Triggering RANDOM video.");
         document.getElementById('main-container').style.display = "none";
         videoContainer.style.display = "flex";
-        videoFeed.style.display = "none";
-        snapshotContainer.style.display = "none";
-        fetch('/get_random_video').then(res => {
-            if (!res.ok) {
-                console.error(`JS: HTTP error fetching random video: ${res.status}`);
-                console.log("JS: Failed to get random video, restarting interaction.");
-                restartInteraction();
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-        }).then(data => {
-            if (data.video_url) {
-                console.log("JS: Random Video URL received:", data.video_url);
-                interactionVideo.src = data.video_url;
-                interactionVideo.onended = () => {
-                    console.log("JS: Random Video ended.");
+        
+        fetch('/get_random_video')
+            .then(res => res.ok ? res.json() : Promise.reject(res.status))
+            .then(data => {
+                if (data.video_url) {
+                    interactionVideo.src = data.video_url;
+                    interactionVideo.play().catch(restartInteraction);
+                } else {
                     restartInteraction();
-                };
-                interactionVideo.onerror = (e) => {
-                    console.error("JS: ERROR Random Video playback:", e);
-                    restartInteraction();
-                };
-                interactionVideo.play().catch(e => {
-                    console.error("JS: Error starting random video playback:", e);
-                    restartInteraction();
-                });
-            } else {
-                console.error("JS: No random video file found or URL received.");
-                restartInteraction();
-            }
-        }).catch(err => {
-            console.error("JS: Error fetching random video URL:", err);
-            restartInteraction();
-        });
+                }
+            }).catch(restartInteraction);
+
+        interactionVideo.onended = restartInteraction;
+        interactionVideo.onerror = restartInteraction;
     }
 
     function playSpecificVideo(videoUrl) {
-        console.log(`JS: Playing SPECIFIC video: ${videoUrl}`);
         document.getElementById('main-container').style.display = "none";
         videoContainer.style.display = "flex";
-        videoFeed.style.display = "none";
-        snapshotContainer.style.display = "none";
         interactionVideo.src = videoUrl;
+        interactionVideo.play().catch(restartInteraction);
+
         interactionVideo.onended = () => {
-            console.log("JS: Specific Video ended.");
             currentForcedVideoProcessed = null;
             restartInteraction();
         };
-        interactionVideo.onerror = (e) => {
-            console.error("JS: ERROR Specific Video playback:", e);
+        interactionVideo.onerror = () => {
             currentForcedVideoProcessed = null;
             restartInteraction();
         };
-        interactionVideo.play().catch(e => {
-            console.error("JS: Error starting specific video playback:", e);
-            currentForcedVideoProcessed = null;
-            restartInteraction();
-        });
     }
 
     function restartInteraction() {
-        console.log("JS: RESTARTING interaction sequence - FORCING RELOAD.");
-        if (pollInterval) {
-            clearInterval(pollInterval);
-            pollInterval = null;
-        }
-        isAudioPlaying = false;
-        isAnalyserReady = false;
-        if (interactionVideo) {
-            interactionVideo.pause();
-            interactionVideo.removeAttribute('src');
-            interactionVideo.load();
-            interactionVideo.onended = null;
-            interactionVideo.onerror = null;
-        }
-        currentForcedVideoProcessed = null;
-        if (audioContext && audioContext.state !== 'closed') {
-            audioContext.close().then(() => {
-                console.log("JS: AudioContext closed.");
-                audioContext = null;
-                audioAnalyser = null;
-                audioDataArray = null;
-                window.location.reload();
-            }).catch(e => {
-                console.error("JS: Error closing AudioContext:", e);
-                audioContext = null;
-                audioAnalyser = null;
-                audioDataArray = null;
-                window.location.reload();
-            });
-        } else {
-            window.location.reload();
-        }
+        console.log("JS: Restarting interaction by reloading the page.");
+        window.location.reload();
     }
 
 
-    // --- MODIFICADO: Lógica completa para el Evento Especial con Video ---
+    // --- Lógica del Evento Especial Aleatorio ---
+
     function triggerSpecialEvent() {
-        // No disparar si ya hay otra interacción importante en curso
         if (isAudioPlaying || (interactionVideo && !interactionVideo.paused) || currentForcedVideoProcessed) {
-            console.log("JS: Main interaction is active, postponing special event.");
-            // Reprogramar para un poco más tarde para no perder el evento
-            setTimeout(setupNextTrigger, 30 * 1000); // Intenta de nuevo en 30s
+            setTimeout(setupNextTrigger, 30 * 1000); // Postpone
             return;
         }
 
-        console.log("JS: Activating special event with video...");
+        console.log("JS: Activating special event...");
         isSpecialEventActive = true;
 
-        // Ocultar la cara y mostrar el contenedor del video especial
         faceCanvas.style.display = 'none';
         specialOverlay.style.display = 'block';
 
-        // Asignar el video y reproducirlo
-        specialVideo.src = '/static/media/event.mp4'; // Ruta al video
+        specialVideo.src = '/static/special/event.mp4'; // Asegúrate que esta ruta es correcta
         specialVideo.currentTime = 0;
+        
+        // --- NUEVO: Enviar señal al backend cuando el video comienza ---
+        specialVideo.onplaying = () => {
+            console.log("JS: Special event video has started. Sending trigger to backend.");
+            fetch('/trigger_special_event', { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) console.error("JS: Backend failed to acknowledge movement trigger.");
+                    else console.log("JS: Backend acknowledged movement trigger.");
+                })
+                .catch(error => console.error('JS: Error sending trigger signal:', error));
+            
+            // Asegurarse que solo se ejecute una vez
+            specialVideo.onplaying = null; 
+        };
 
-        // Limpiar el handler anterior para evitar duplicados
-        specialVideo.onended = null;
-        specialVideo.onerror = null;
-
-        // Cuando el video termina, volver a la normalidad
         specialVideo.onended = () => {
-            console.log("JS: Special event video finished.");
+            console.log("JS: Special event finished.");
             specialOverlay.style.display = 'none';
             faceCanvas.style.display = 'block';
             isSpecialEventActive = false;
-            // Limpiar el src para liberar memoria
             specialVideo.removeAttribute('src');
             specialVideo.load();
         };
-
-        specialVideo.onerror = (e) => {
-            console.error("JS: Error playing special event video:", e);
-            specialOverlay.style.display = 'none';
-            faceCanvas.style.display = 'block';
-            isSpecialEventActive = false;
+        
+        specialVideo.onerror = () => {
+             console.error("JS: Error playing special video.");
+             specialVideo.onended(); // Reutiliza la lógica de finalización para limpiar
         };
 
-        specialVideo.play().catch(error => console.error("Error al reproducir video especial:", error));
+        specialVideo.play().catch(e => specialVideo.onerror());
     }
 
     function setupNextTrigger() {
-        // --- Configuración Personalizable del Evento Especial ---
-        const minSeconds = 120; // Mínimo de segundos para esperar (2 minutos)
-        const maxSeconds = 180; // Máximo de segundos para esperar (3 minutos)
-
-        const randomDelay = Math.random() * (maxSeconds - minSeconds) + minSeconds;
-        console.log(`JS: Next special event scheduled in ${Math.round(randomDelay)} seconds.`);
-
+        // Chequeo rápido para ver si la función debe correr, basado en la config del otro servidor.
+        // No podemos leer la config directamente, pero si el usuario deshabilita el evento,
+        // esto simplemente seguirá corriendo en el cliente sin hacer nada visible, lo cual es aceptable.
+        const minSeconds = 120;
+        const maxSeconds = 180;
+        const randomDelay = (Math.random() * (maxSeconds - minSeconds) + minSeconds) * 1000;
+        
+        console.log(`JS: Next special event check in ${Math.round(randomDelay / 1000)}s.`);
         setTimeout(() => {
             triggerSpecialEvent();
-            // Una vez disparado, configurar el siguiente
-            setupNextTrigger();
-        }, randomDelay * 1000);
+            setupNextTrigger(); // Re-schedule the next one
+        }, randomDelay);
     }
-    // --- FIN de la lógica del Evento Especial ---
 
-
-    // --- Inicialización de la Página ---
+    // --- Inicialización ---
     console.log("JS: Document loaded. Initializing.");
     animateFace();
-    if (pollInterval) clearInterval(pollInterval);
     pollInterval = setInterval(pollDetectionStatus, 500);
-    console.log("JS: Initial polling started.");
-    if (interactionVideo) {
-        videoContainer.style.display = "none";
-    } else {
-        console.error("JS: interactionVideo element not found!");
-    }
-    document.getElementById('main-container').style.display = "flex";
-
-    // --- MODIFICADO: Iniciar el ciclo del evento especial aleatorio ---
+    
+    // Iniciar el ciclo del evento especial si los elementos existen
     if (specialOverlay && specialVideo) {
         setupNextTrigger();
     } else {
         console.error("JS: specialOverlay or specialVideo element not found! The special event will not run.");
-    }
-
-    const skipButton = document.getElementById('button-skip-video-main');
-    if (skipButton) {
-        skipButton.addEventListener('click', restartInteraction);
     }
 });
