@@ -461,7 +461,7 @@ document.addEventListener("DOMContentLoaded", function() {
         specialOverlay.style.display = 'block';
 
         // Asignar el video y reproducirlo
-        specialVideo.src = '/static/special/event.mp4'; // Ruta al video
+        specialVideo.src = '/static/media/event.mp4'; // Ruta al video
         specialVideo.currentTime = 0;
 
         // Limpiar el handler anterior para evitar duplicados
