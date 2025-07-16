@@ -38,9 +38,9 @@ special_event_config = {
     "enabled": False,
     "min_time": 120,
     "max_time": 180,
-    "initial_delay": 22000, # Este es el valor que cambiaste
-    "move_duration": 500,
-    "delay_between": 500
+    "initial_delay": 23500, # Este es el valor que cambiaste
+    "move_duration": 450,
+    "delay_between": 400
 }
 special_event_thread = None
 special_event_timer_event = threading.Event()
