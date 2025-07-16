@@ -14,12 +14,40 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Variables de Estado ---
     let currentEmotion = "neutral";
     let isAudioPlaying = false;
-    let isShowingStaticEmotion = false; // NUEVO: Estado para controlar la cara estática.
+    let isShowingStaticEmotion = false;
     let currentForcedVideoProcessed = null;
     let audioContext = null;
     let audioAnalyser = null;
     let audioDataArray = null;
     let isAnalyserReady = false;
+
+    // --- NUEVO: Función para ajustar la resolución del canvas ---
+    /**
+     * Ajusta la resolución interna del canvas para que coincida con su tamaño de visualización,
+     * eliminando el pixelado. Vuelve a dibujar la cara para reflejar el cambio.
+     */
+    function resizeCanvasAndRedraw() {
+        const { width, height } = faceCanvas.getBoundingClientRect();
+
+        // Si el tamaño real es 0, no hagas nada (evita errores si está oculto)
+        if (width === 0 || height === 0) return;
+
+        // Comprueba si la resolución interna ya coincide para evitar trabajo innecesario
+        if (faceCanvas.width !== width || faceCanvas.height !== height) {
+            faceCanvas.width = width;
+            faceCanvas.height = height;
+            console.log(`Canvas HD activado. Resolución: ${width}x${height}`);
+        }
+
+        // Vuelve a dibujar el estado actual de la cara con la nueva resolución
+        if (isShowingStaticEmotion) {
+            drawStaticEmotionFace(ctx, currentEmotion);
+        } else if (!isAudioPlaying) {
+            // Si no está sonando nada, dibuja la cara "neutra" animada.
+            drawAnimatedFace(0); 
+        }
+        // Si el audio está sonando, el bucle 'animateFace' se encargará de redibujar.
+    }
 
     // --- Precargar y "calentar" el video del evento especial ---
     if (randomEventVideo) {
@@ -31,12 +59,7 @@ document.addEventListener("DOMContentLoaded", function() {
         randomEventVideo.load();
     }
     
-    // --- NUEVO: Función para dibujar la cara estática de la emoción ---
-    /**
-     * Dibuja una cara estática basada en la emoción detectada.
-     * @param {CanvasRenderingContext2D} ctx - El contexto 2D del canvas.
-     * @param {string} emotion - El nombre de la emoción a dibujar.
-     */
+    // --- Función para dibujar la cara estática de la emoción (Sin cambios) ---
     function drawStaticEmotionFace(ctx, emotion) {
         const cw = ctx.canvas.width;
         const ch = ctx.canvas.height;
@@ -66,26 +89,22 @@ document.addEventListener("DOMContentLoaded", function() {
         ctx.fillRect(leftEyeX - baseEyeWidth / 2, eyeY - baseEyeHeight / 2, baseEyeWidth, baseEyeHeight);
         ctx.fillRect(rightEyeX - baseEyeWidth / 2, eyeY - baseEyeHeight / 2, baseEyeWidth, baseEyeHeight);
 
-        // Cejas (solo para algunas emociones)
+        // Cejas
         const eyebrowOffsetY = eyeY - baseEyeHeight * 0.8;
         const eyebrowLength = baseEyeWidth * 1.2;
         const eyebrowTilt = ch * 0.08;
 
         if (emotion === "angry") {
             ctx.beginPath();
-            // Ceja izquierda
             ctx.moveTo(leftEyeX - eyebrowLength / 2, eyebrowOffsetY - eyebrowTilt / 2);
             ctx.lineTo(leftEyeX + eyebrowLength / 2, eyebrowOffsetY + eyebrowTilt / 2);
-            // Ceja derecha
             ctx.moveTo(rightEyeX - eyebrowLength / 2, eyebrowOffsetY + eyebrowTilt / 2);
             ctx.lineTo(rightEyeX + eyebrowLength / 2, eyebrowOffsetY - eyebrowTilt / 2);
             ctx.stroke();
         } else if (emotion === "fear") {
             ctx.beginPath();
-            // Ceja izquierda
             ctx.moveTo(leftEyeX - eyebrowLength / 2, eyebrowOffsetY + eyebrowTilt / 2);
             ctx.lineTo(leftEyeX + eyebrowLength / 2, eyebrowOffsetY - eyebrowTilt / 2);
-            // Ceja derecha
             ctx.moveTo(rightEyeX - eyebrowLength / 2, eyebrowOffsetY - eyebrowTilt / 2);
             ctx.lineTo(rightEyeX + eyebrowLength / 2, eyebrowOffsetY + eyebrowTilt / 2);
             ctx.stroke();
@@ -99,7 +118,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const mouthCenterY = faceCenterY + mouthOffsetY;
 
         ctx.beginPath();
-
         switch (emotion) {
             case "happy":
                 ctx.ellipse(mouthCenterX, mouthCenterY, baseMouthRadiusX, baseMouthRadiusY, 0, 0, Math.PI);
@@ -134,10 +152,14 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    // --- Función para dibujar la cara animada (parlante) ---
+    // --- Función para dibujar la cara animada (parlante) (Sin Cambios) ---
     function drawAnimatedFace(amplitude = 0) {
         const cw = faceCanvas.width;
         const ch = faceCanvas.height;
+
+        // Si no hay tamaño, no intentes dibujar.
+        if (cw === 0 || ch === 0) return;
+
         ctx.clearRect(0, 0, cw, ch);
 
         const t = Date.now() / 1000;
@@ -169,6 +191,7 @@ document.addEventListener("DOMContentLoaded", function() {
         ctx.fill();
     }
 
+    // --- Lógica de Audio (Sin cambios) ---
     function setupAudioAnalyser(audioElement) {
         if (!audioContext) audioContext = new(window.AudioContext || window.webkitAudioContext)();
         if (audioContext.state === 'suspended') audioContext.resume();
@@ -191,20 +214,18 @@ document.addEventListener("DOMContentLoaded", function() {
         return audioDataArray.slice(0, audioDataArray.length / 2).reduce((s, v) => s + v, 0) / (audioDataArray.length / 2) / 255;
     }
 
-    // --- Bucle de Animación (MODIFICADO) ---
+    // --- Bucle de Animación ---
     function animateFace() {
         requestAnimationFrame(animateFace);
 
-        // Si estamos mostrando la cara estática, no hacemos nada en este bucle.
         if (isShowingStaticEmotion) {
             return;
         }
         
-        // Solo animar si el audio está sonando.
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
         
         if (videoContainer.style.display !== "flex" && randomEventVideo.style.display !== 'block') {
-            drawAnimatedFace(amplitude); // Usar la función de cara animada.
+            drawAnimatedFace(amplitude);
         } else {
             ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
         }
@@ -221,7 +242,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // --- Lógica Principal de Interacción (MODIFICADA) ---
+    // --- Lógica Principal de Interacción (Sin cambios) ---
     function pollDetectionStatus() {
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {
@@ -236,7 +257,6 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             if (!currentForcedVideoProcessed) {
-                // MODIFICADO: Llamar al nuevo manejador de emoción.
                 if (data.detected && !isAudioPlaying && !isShowingStaticEmotion && interactionVideo.paused && randomEventVideo.paused) {
                     handleEmotionDetection(data.emotion);
                 } else if (!data.detected && snapshotContainer.style.display !== 'none') {
@@ -247,25 +267,21 @@ document.addEventListener("DOMContentLoaded", function() {
         }).catch(err => console.error("Polling error:", err));
     }
 
-    // --- NUEVO: Manejador para la secuencia de emoción ---
     function handleEmotionDetection(emotion) {
         isShowingStaticEmotion = true;
         currentEmotion = emotion;
 
-        // 1. Mostrar la captura y el texto de la emoción.
         videoFeed.style.display = "none";
         snapshotContainer.style.display = "block";
         snapshotImg.src = "/snapshot?" + Date.now();
         emotionText.innerText = "Emoción: " + currentEmotion.toUpperCase();
 
-        // 2. Dibujar la cara estática de la emoción.
         drawStaticEmotionFace(ctx, currentEmotion);
 
-        // 3. Esperar 2 segundos antes de iniciar el audio y la animación.
         setTimeout(() => {
             isShowingStaticEmotion = false;
             triggerAudio(currentEmotion);
-        }, 2000); // 2000 ms = 2 segundos
+        }, 2000);
     }
 
     function triggerAudio(emotion) {
@@ -294,7 +310,6 @@ document.addEventListener("DOMContentLoaded", function() {
         }).catch(restartInteraction);
     }
     
-    // --- Lógica de reproducción de video (sin cambios) ---
     function playSpecificVideo(videoPath) {
         const isSpecial = videoPath.includes('special/event.mp4');
         console.log(`Playing ${isSpecial ? 'special' : 'normal'} video: ${videoPath}`);
@@ -331,7 +346,13 @@ document.addEventListener("DOMContentLoaded", function() {
         window.location.reload();
     }
 
-    // --- Inicialización ---
+    // --- MODIFICADO: Inicialización ---
+    // 1. Ajustar la resolución del canvas al cargar la página.
+    resizeCanvasAndRedraw();
+    // 2. Ajustar la resolución si cambia el tamaño de la ventana (ej. rotar tablet).
+    window.addEventListener('resize', resizeCanvasAndRedraw);
+    // 3. Iniciar el bucle de animación.
     animateFace();
+    // 4. Iniciar el sondeo del estado del servidor.
     setInterval(pollDetectionStatus, 500);
 });
