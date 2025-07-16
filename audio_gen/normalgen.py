@@ -17,7 +17,7 @@ OUTPUT_DIR = "output_audio_exacto"
 # TEXTO EXACTO QUE QUIERES CONVERTIR A AUDIO
 # ----------------------------------------------------
 FRASES_PARA_GENERAR = [
-    "¡Hola! Soy Tomas, para poder reconocer tu emoción de forma correcta y compartirte informacion sobre Celsia, posiciónate a 1 metro de distancia alfrente de mi, y mírame a los ojos."
+    "¡Hola! Siento a alguien cerca. Soy Tomas, puedo reconocer algunas de tus emociones según tu expresión facial, como: neutralidad, felicidad, tristeza, sorpresa, enojo, miedo y disgusto. Para interactuar, colócate entre uno y dos pasos de distancia de mí y mírame a los ojos. Deberías poder verte en esta cámara de abajo. Además, me puedo mover hacia atrás, ///// adelante, ///// girar a la izquierda, ///// y derecha, ///// así que ten cuidado al estar cerca de mí. Tambien puedes cargar tu teléfono con los enchufes de aquí encima. En caso de emergencia, siempre puedes apagarme con el botón señalizado abajo en mi espalda.",
 ]
 
 # -------------------------------
