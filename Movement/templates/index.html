@@ -450,10 +450,23 @@
         }
 
         // Lógica de botones de movimiento
-        ['right', 'left', 'backward', 'forward'].forEach(direction => {
-            const button = buttons[direction];
-            if (button) {
-                const startEvent = () => sendMoveCommand(direction);
+        const moveCommands = {
+            'forward':  'right',     // Botón ARRIBA (forward) -> envía comando 'right' para que vaya adelante.
+            'backward': 'left',      // Botón ABAJO (backward) -> envía comando 'left' para que vaya atrás.
+            'left':     'forward',   // Botón IZQUIERDA (left) -> envía comando 'forward' para que vaya a la izquierda.
+            'right':    'backward'   // Botón DERECHA (right) -> envía comando 'backward' para que vaya a la derecha.
+        };
+        // ***************************************************************
+
+        // Este código usa el mapeo de arriba para asignar los eventos.
+        // No necesitas modificar nada debajo de esta línea.
+        Object.keys(moveCommands).forEach(buttonName => {
+            const button = buttons[buttonName]; // Selecciona el botón por su nombre (ej: 'forward')
+            const commandToSend = moveCommands[buttonName]; // Obtiene el comando a enviar (ej: 'right')
+
+            if (button && commandToSend) {
+                const startEvent = () => sendMoveCommand(commandToSend);
+                
                 button.addEventListener('mousedown', startEvent);
                 button.addEventListener('touchstart', (e) => { e.preventDefault(); startEvent(); }, { passive: false });
                 
@@ -461,6 +474,7 @@
                 stopEvents.forEach(event => button.addEventListener(event, (e) => { e.preventDefault(); sendStopCommand(); }));
             }
         });
+
         if (buttons.stop) {
             buttons.stop.addEventListener('click', sendStopCommand);
             buttons.stop.addEventListener('touchstart', (e) => { e.preventDefault(); sendStopCommand(); }, { passive: false });
