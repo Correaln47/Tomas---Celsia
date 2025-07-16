@@ -309,230 +309,220 @@
     </div>
 
     <script>
-    // --- Selectores de Elementos ---
-    const buttons = {
-        forward: document.getElementById('button-forward'),
-        backward: document.getElementById('button-backward'),
-        left: document.getElementById('button-left'),
-        right: document.getElementById('button-right'),
-        stop: document.getElementById('button-stop')
-    };
-    const videoSelect = document.getElementById('video-select');
-    const playVideoButton = document.getElementById('button-play-video');
-    const skipVideoButton = document.getElementById('button-skip-video');
-    
-    // NUEVO: Selectores de Volumen
-    const volumeSlider = document.getElementById('volume-slider');
-    const volumePercentage = document.getElementById('volume-percentage');
-
-    const eventToggle = document.getElementById('event-toggle');
-    const minTimeInput = document.getElementById('min-time');
-    const maxTimeInput = document.getElementById('max-time');
-    const initialDelayInput = document.getElementById('initial-delay');
-    const moveDurationInput = document.getElementById('move-duration');
-    const delayBetweenInput = document.getElementById('delay-between');
-    const triggerEventButton = document.getElementById('button-trigger-event');
-
-    const mainAppUrl = `http://${window.location.hostname}:5000`;
-    const movementAppUrl = `http://${window.location.hostname}:5001`;
-
-    // --- Funciones de Comunicación ---
-
-    function sendMoveCommand(command) {
-        fetch(`${movementAppUrl}/control`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ command: command })
-        })
-        .catch(error => console.error("Error sending move command:", error));
-    }
-
-    function sendStopCommand() {
-        fetch(`${movementAppUrl}/stop`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({})
-        })
-        .catch(error => console.error("Error stopping:", error));
-    }
-
-    // --- NUEVO: Funciones de Volumen ---
-    async function fetchVolume() {
-        try {
-            const response = await fetch(`${movementAppUrl}/get_volume`);
-            const data = await response.json();
-            if (response.ok) {
-                volumeSlider.value = data.volume;
-                volumePercentage.textContent = `${data.volume}%`;
-            } else {
-                 volumePercentage.textContent = 'Error';
-            }
-        } catch (error) {
-            console.error('Error fetching volume:', error);
-            volumePercentage.textContent = 'N/A';
-        }
-    }
-    
-    let volumeDebounceTimer;
-    function setVolume(volume) {
-        volumePercentage.textContent = `${volume}%`;
-        // Evitar enviar demasiadas peticiones mientras se arrastra el slider
-        clearTimeout(volumeDebounceTimer);
-        volumeDebounceTimer = setTimeout(() => {
-            fetch(`${movementAppUrl}/set_volume`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ volume: parseInt(volume, 10) })
-            }).catch(error => console.error('Error setting volume:', error));
-        }, 100); // Envía la petición 100ms después de que el usuario deja de mover el slider
-    }
-
-    function sendEventConfig() {
-        let minTime = parseInt(minTimeInput.value, 10);
-        let maxTime = parseInt(maxTimeInput.value, 10);
-        if (minTime > maxTime) {
-            minTime = maxTime;
-            minTimeInput.value = maxTime;
-        }
-
-        const config = {
-            enabled: eventToggle.checked,
-            min_time: minTime,
-            max_time: maxTime,
-            initial_delay: parseInt(initialDelayInput.value, 10),
-            move_duration: parseInt(moveDurationInput.value, 10),
-            delay_between: parseInt(delayBetweenInput.value, 10)
+        // --- Selectores de Elementos ---
+        const buttons = {
+            forward: document.getElementById('button-forward'),
+            backward: document.getElementById('button-backward'),
+            left: document.getElementById('button-left'),
+            right: document.getElementById('button-right'),
+            stop: document.getElementById('button-stop')
         };
+        const videoSelect = document.getElementById('video-select');
+        const playVideoButton = document.getElementById('button-play-video');
+        const skipVideoButton = document.getElementById('button-skip-video');
         
-        fetch(`${mainAppUrl}/config_special_event`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(config)
-        })
-        .then(response => response.json())
-        .then(data => console.log("Config sent to main app:", data.message))
-        .catch(error => console.error("Error saving config:", error));
-    }
+        // NUEVO: Selectores de Volumen
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumePercentage = document.getElementById('volume-percentage');
 
-    async function fetchEventConfig() {
-        try {
-            const response = await fetch(`${mainAppUrl}/get_special_event_config`);
-            if (!response.ok) throw new Error("Failed to fetch config from main app");
-            const config = await response.json();
-            
-            eventToggle.checked = config.enabled;
-            minTimeInput.value = config.min_time;
-            maxTimeInput.value = config.max_time;
-            initialDelayInput.value = config.initial_delay;
-            moveDurationInput.value = config.move_duration;
-            delayBetweenInput.value = config.delay_between;
-        } catch (error) {
-            console.error("Error fetching initial config:", error);
-        }
-    }
+        const eventToggle = document.getElementById('event-toggle');
+        const minTimeInput = document.getElementById('min-time');
+        const maxTimeInput = document.getElementById('max-time');
+        const initialDelayInput = document.getElementById('initial-delay');
+        const moveDurationInput = document.getElementById('move-duration');
+        const delayBetweenInput = document.getElementById('delay-between');
+        const triggerEventButton = document.getElementById('button-trigger-event');
 
-    async function triggerSpecialEventManually() {
-        console.log('Triggering special event manually...');
-        try {
-            const response = await fetch(`${mainAppUrl}/trigger_special_event_manually`, {
-                method: 'POST'
-            });
-            const result = await response.json();
-            if (response.ok) {
-                alert('Evento especial activado con éxito!');
-            } else {
-                alert(`Error: ${result.message}`);
-            }
-        } catch (error) {
-            console.error('Error triggering manual event:', error);
-            alert('Error de comunicación al activar el evento.');
-        }
-    }
+        const mainAppUrl = `http://${window.location.hostname}:5000`;
+        const movementAppUrl = `http://${window.location.hostname}:5001`;
 
-    // --- Lógica de botones de movimiento ---
-    
-    // Lista de direcciones y sus botones correspondientes
-    const moveButtons = [
-        { button: buttons.forward,  command: 'forward'  }, // ### CORREGIDO ###
-        { button: buttons.backward, command: 'backward' }, // ### CORREGIDO ###
-        { button: buttons.left,     command: 'left'     }, // ### CORREGIDO ###
-        { button: buttons.right,    command: 'right'    }  // ### CORREGIDO ###
-    ];
+        // --- Funciones de Comunicación ---
 
-    moveButtons.forEach(item => {
-        if (item.button) {
-            const startEvent = () => sendMoveCommand(item.command);
-            
-            item.button.addEventListener('mousedown', startEvent);
-            item.button.addEventListener('touchstart', (e) => { e.preventDefault(); startEvent(); }, { passive: false });
-            
-            const stopEvents = ['mouseup', 'mouseleave', 'touchend', 'touchcancel'];
-            stopEvents.forEach(event => item.button.addEventListener(event, (e) => { e.preventDefault(); sendStopCommand(); }));
-        }
-    });
-    
-    if (buttons.stop) {
-        buttons.stop.addEventListener('click', sendStopCommand);
-        buttons.stop.addEventListener('touchstart', (e) => { e.preventDefault(); sendStopCommand(); }, { passive: false });
-    }
-
-    // Lógica de controles de video
-    async function fetchVideoList() {
-        try {
-            const response = await fetch(`${mainAppUrl}/list_videos`);
-            const data = await response.json();
-            videoSelect.innerHTML = '<option value="">-- Selecciona un video --</option>';
-            if (data.videos && data.videos.length > 0) {
-                data.videos.forEach(videoFile => {
-                    const option = document.createElement('option');
-                    option.value = videoFile;
-                    option.textContent = videoFile.split('.')[0].replace(/_/g, ' ');
-                    videoSelect.appendChild(option);
-                });
-            }
-        } catch (error) {
-            videoSelect.innerHTML = '<option value="">Error al cargar</option>';
-        }
-    }
-    async function playSelectedVideo() {
-        const selectedVideoFile = videoSelect.value;
-        if (!selectedVideoFile) return;
-        try {
-            await fetch(`${mainAppUrl}/play_specific_video`, {
+        function sendMoveCommand(command) {
+            fetch(`${movementAppUrl}/control`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ video_file: selectedVideoFile })
-            });
-        } catch (error) {
-            alert("Error de comunicación al reproducir el video.");
+                body: JSON.stringify({ command: command })
+            })
+            .catch(error => console.error("Error sending move command:", error));
         }
-    }
-    async function skipCurrentVideo() {
-        try {
-            await fetch(`${mainAppUrl}/restart`);
-        } catch (error) {
-            alert("Error de comunicación al reiniciar.");
+
+        function sendStopCommand() {
+            fetch(`${movementAppUrl}/stop`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({})
+            })
+            .catch(error => console.error("Error stopping:", error));
         }
-    }
-    if (playVideoButton) playVideoButton.addEventListener('click', playSelectedVideo);
-    if (skipVideoButton) skipVideoButton.addEventListener('click', skipCurrentVideo);
 
-    // --- Inicialización ---
-    document.addEventListener('DOMContentLoaded', () => {
-        fetchVideoList();
-        fetchEventConfig();
-        fetchVolume(); // NUEVO: Cargar el volumen inicial
-
-        const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
-        configInputs.forEach(input => input.addEventListener('change', sendEventConfig));
+        // --- NUEVO: Funciones de Volumen ---
+        async function fetchVolume() {
+            try {
+                const response = await fetch(`${movementAppUrl}/get_volume`);
+                const data = await response.json();
+                if (response.ok) {
+                    volumeSlider.value = data.volume;
+                    volumePercentage.textContent = `${data.volume}%`;
+                } else {
+                     volumePercentage.textContent = 'Error';
+                }
+            } catch (error) {
+                console.error('Error fetching volume:', error);
+                volumePercentage.textContent = 'N/A';
+            }
+        }
         
-        // NUEVO: Listener para el slider de volumen
-        volumeSlider.addEventListener('input', (e) => setVolume(e.target.value));
-
-        if (triggerEventButton) {
-            triggerEventButton.addEventListener('click', triggerSpecialEventManually);
+        let volumeDebounceTimer;
+        function setVolume(volume) {
+            volumePercentage.textContent = `${volume}%`;
+            // Evitar enviar demasiadas peticiones mientras se arrastra el slider
+            clearTimeout(volumeDebounceTimer);
+            volumeDebounceTimer = setTimeout(() => {
+                fetch(`${movementAppUrl}/set_volume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume: parseInt(volume, 10) })
+                }).catch(error => console.error('Error setting volume:', error));
+            }, 100); // Envía la petición 100ms después de que el usuario deja de mover el slider
         }
-    });
-</script>
+
+        function sendEventConfig() {
+            let minTime = parseInt(minTimeInput.value, 10);
+            let maxTime = parseInt(maxTimeInput.value, 10);
+            if (minTime > maxTime) {
+                minTime = maxTime;
+                minTimeInput.value = maxTime;
+            }
+
+            const config = {
+                enabled: eventToggle.checked,
+                min_time: minTime,
+                max_time: maxTime,
+                initial_delay: parseInt(initialDelayInput.value, 10),
+                move_duration: parseInt(moveDurationInput.value, 10),
+                delay_between: parseInt(delayBetweenInput.value, 10)
+            };
+            
+            fetch(`${mainAppUrl}/config_special_event`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(data => console.log("Config sent to main app:", data.message))
+            .catch(error => console.error("Error saving config:", error));
+        }
+
+        async function fetchEventConfig() {
+            try {
+                const response = await fetch(`${mainAppUrl}/get_special_event_config`);
+                if (!response.ok) throw new Error("Failed to fetch config from main app");
+                const config = await response.json();
+                
+                eventToggle.checked = config.enabled;
+                minTimeInput.value = config.min_time;
+                maxTimeInput.value = config.max_time;
+                initialDelayInput.value = config.initial_delay;
+                moveDurationInput.value = config.move_duration;
+                delayBetweenInput.value = config.delay_between;
+            } catch (error) {
+                console.error("Error fetching initial config:", error);
+            }
+        }
+
+        async function triggerSpecialEventManually() {
+            console.log('Triggering special event manually...');
+            try {
+                const response = await fetch(`${mainAppUrl}/trigger_special_event_manually`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Evento especial activado con éxito!');
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error triggering manual event:', error);
+                alert('Error de comunicación al activar el evento.');
+            }
+        }
+
+        // Lógica de botones de movimiento
+        ['right', 'left', 'backward', 'forward'].forEach(direction => {
+            const button = buttons[direction];
+            if (button) {
+                const startEvent = () => sendMoveCommand(direction);
+                button.addEventListener('mousedown', startEvent);
+                button.addEventListener('touchstart', (e) => { e.preventDefault(); startEvent(); }, { passive: false });
+                
+                const stopEvents = ['mouseup', 'mouseleave', 'touchend', 'touchcancel'];
+                stopEvents.forEach(event => button.addEventListener(event, (e) => { e.preventDefault(); sendStopCommand(); }));
+            }
+        });
+        if (buttons.stop) {
+            buttons.stop.addEventListener('click', sendStopCommand);
+            buttons.stop.addEventListener('touchstart', (e) => { e.preventDefault(); sendStopCommand(); }, { passive: false });
+        }
+
+        // Lógica de controles de video
+        async function fetchVideoList() {
+            try {
+                const response = await fetch(`${mainAppUrl}/list_videos`);
+                const data = await response.json();
+                videoSelect.innerHTML = '<option value="">-- Selecciona un video --</option>';
+                if (data.videos && data.videos.length > 0) {
+                    data.videos.forEach(videoFile => {
+                        const option = document.createElement('option');
+                        option.value = videoFile;
+                        option.textContent = videoFile.split('.')[0].replace(/_/g, ' ');
+                        videoSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                videoSelect.innerHTML = '<option value="">Error al cargar</option>';
+            }
+        }
+        async function playSelectedVideo() {
+            const selectedVideoFile = videoSelect.value;
+            if (!selectedVideoFile) return;
+            try {
+                await fetch(`${mainAppUrl}/play_specific_video`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ video_file: selectedVideoFile })
+                });
+            } catch (error) {
+                alert("Error de comunicación al reproducir el video.");
+            }
+        }
+        async function skipCurrentVideo() {
+            try {
+                await fetch(`${mainAppUrl}/restart`);
+            } catch (error) {
+                alert("Error de comunicación al reiniciar.");
+            }
+        }
+        if (playVideoButton) playVideoButton.addEventListener('click', playSelectedVideo);
+        if (skipVideoButton) skipVideoButton.addEventListener('click', skipCurrentVideo);
+
+        // --- Inicialización ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchVideoList();
+            fetchEventConfig();
+            fetchVolume(); // NUEVO: Cargar el volumen inicial
+
+            const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
+            configInputs.forEach(input => input.addEventListener('change', sendEventConfig));
+            
+            // NUEVO: Listener para el slider de volumen
+            volumeSlider.addEventListener('input', (e) => setVolume(e.target.value));
+
+            if (triggerEventButton) {
+                triggerEventButton.addEventListener('click', triggerSpecialEventManually);
+            }
+        });
+    </script>
 </body>
 </html>
