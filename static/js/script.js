@@ -20,10 +20,10 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioDataArray = null;
     let isAnalyserReady = false;
 
-    // --- NUEVO: Precargar el video del evento especial para reproducción instantánea ---
+    // --- Precargar el video del evento especial para reproducción instantánea ---
     if (randomEventVideo) {
         randomEventVideo.preload = 'auto';
-        // Opcional: Cargar la fuente explícitamente si no está en el HTML
+        // Asignamos la ruta correcta para que el navegador la descargue
         if (!randomEventVideo.src) {
              randomEventVideo.src = '/static/special/event.mp4';
              randomEventVideo.load();
@@ -170,19 +170,19 @@ document.addEventListener("DOMContentLoaded", function() {
         }).catch(restartInteraction);
     }
 
+    // --- Lógica de reproducción de video (CORREGIDA) ---
     function playSpecificVideo(videoPath) {
         const isSpecial = videoPath.includes('special/event.mp4');
         
         console.log(`Playing ${isSpecial ? 'special' : 'normal'} video: ${videoPath}`);
 
         if (isSpecial) {
+            // Lógica corregida para el evento especial.
             faceCanvas.style.display = 'none'; 
             randomEventVideo.style.display = 'block';
             
-            // Si el video ya está cargado (gracias a preload), la reproducción será más rápida
-            if (randomEventVideo.src !== new URL(videoPath, window.location.origin).href) {
-                 randomEventVideo.src = videoPath;
-            }
+            // Rebobinamos el video al inicio por si se reproduce varias veces.
+            randomEventVideo.currentTime = 0;
             
             const onEnd = () => {
                 randomEventVideo.style.display = 'none';
@@ -192,9 +192,18 @@ document.addEventListener("DOMContentLoaded", function() {
             
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;
-            randomEventVideo.play().catch(e => { console.error("Error playing special video:", e); onEnd(); });
+
+            // Simplemente reproducimos el video, que ya debe estar cargado.
+            const playPromise = randomEventVideo.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => { 
+                    console.error("Error playing special video:", e); 
+                    onEnd(); 
+                });
+            }
 
         } else {
+            // Lógica para videos normales (sin cambios).
             mainContainer.style.display = 'none';
             videoContainer.style.display = 'flex';
             interactionVideo.src = videoPath.startsWith('/static') ? videoPath : `/static/video/${videoPath}`;
