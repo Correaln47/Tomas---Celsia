@@ -10,9 +10,10 @@
       
       <div id="faceContainer">
         <canvas id="faceCanvas"></canvas>
-        <div id="specialOverlay" style="display: none;">
-            <video id="specialVideo" width="100%" height="100%"></video>
-        </div>
+      </div>
+
+      <div id="specialOverlay" style="display: none;">
+          <video id="specialVideo" width="100%" height="100%"></video>
       </div>
 
       <img id="videoFeed" src="/video_feed" alt="Live Video Feed">
@@ -23,86 +24,53 @@
       </div>
       
       <div id="carousel-container">
-        <div id="carousel-track">
-          </div>
+        <div id="carousel-track"></div>
       </div>
       <div class="power-button-comment">
         <p>Botón de apagado <br> (detrás del robot)</p>
         <div class="arrow">⬇️</div>
       </div>
-
     </div>
 
-    <div id="video-container">
+    <div id="video-container" style="display: none;">
       <video id="interactionVideo" controls autoplay></video>
     </div>
 
     <script src="/static/js/script.js"></script>
     
     <script>
+      // El script del carrusel no necesita cambios.
       document.addEventListener('DOMContentLoaded', function() {
         const carouselContainer = document.getElementById('carousel-container');
         const track = document.getElementById('carousel-track');
-        
         const imageFiles = {{ image_files|tojson }};
-
         if (imageFiles && imageFiles.length > 0) {
-            
             carouselContainer.style.display = 'block';
             track.innerHTML = '';
             const uploadServerUrl = 'http://' + window.location.hostname + ':5002';
-
-            // --- LÓGICA DE LLENADO Y BUCLE PERFECTO ---
-
-            // 1. Crear el primer "set" de imágenes que será la base.
             const imageSet = document.createElement('div');
             imageFiles.forEach(url => {
                 const img = document.createElement('img');
                 img.src = uploadServerUrl + url;
                 imageSet.appendChild(img);
             });
-
-            // 2. Medir el ancho de este set de imágenes.
-            //    Lo añadimos temporalmente para que el navegador calcule su tamaño.
             track.appendChild(imageSet);
             const setWidth = imageSet.offsetWidth;
-            track.innerHTML = ''; // Limpiamos la pista de nuevo.
-
-            if (setWidth === 0) {
-                console.error("No se pudo medir el ancho de las imágenes, el carrusel no puede iniciar.");
-                carouselContainer.style.display = 'none';
-                return; // Salimos de la función si hay un error
+            track.innerHTML = '';
+            if (setWidth > 0) {
+                const repeats = Math.ceil(window.innerWidth / setWidth) + 2;
+                const firstHalf = document.createElement('div');
+                for (let i = 0; i < repeats; i++) {
+                    firstHalf.appendChild(imageSet.cloneNode(true));
+                }
+                const secondHalf = firstHalf.cloneNode(true);
+                track.appendChild(firstHalf);
+                track.appendChild(secondHalf);
+                const finalWidth = firstHalf.offsetWidth;
+                const speed = 100;
+                const animationDuration = finalWidth / speed;
+                track.style.animationDuration = animationDuration + 's';
             }
-
-            // 3. Forzar el llenado de la pista.
-            //    Calculamos cuántas veces necesitamos repetir el set para que sea MÁS ANCHO que la pantalla.
-            //    Añadimos +2 para asegurarnos de que haya contenido de sobra.
-            const repeats = Math.ceil(window.innerWidth / setWidth) + 2;
-            
-            // Creamos un gran bloque de imágenes.
-            const firstHalf = document.createElement('div');
-            for (let i = 0; i < repeats; i++) {
-                firstHalf.appendChild(imageSet.cloneNode(true));
-            }
-
-            // 4. Crear la copia idéntica para el bucle.
-            const secondHalf = firstHalf.cloneNode(true);
-            
-            // 5. Añadir ambas mitades a la pista.
-            track.appendChild(firstHalf);
-            track.appendChild(secondHalf);
-            
-            // 6. Ajustar la animación.
-            const finalWidth = firstHalf.offsetWidth; // Medimos el ancho de la primera mitad.
-            const speed = 100; // 100 píxeles por segundo. Ajusta este valor para cambiar la velocidad.
-            const animationDuration = finalWidth / speed;
-
-            // La animación del CSS se encargará del resto. Solo ajustamos la duración.
-            track.style.animationDuration = animationDuration + 's';
-
-        } else {
-            console.log('No se encontraron imágenes para el carrusel.');
-            carouselContainer.style.display = 'none';
         }
       });
     </script>
