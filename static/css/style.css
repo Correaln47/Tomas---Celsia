@@ -48,19 +48,27 @@ body {
 }
 
 #faceContainer {
-    position: relative;
-    display: block;
-    width: 90%;
-    height: 50vh;
-    margin: 1em auto;
+  position: relative;
+  display: block;
+  /* Ancho relativo para adaptarse a la pantalla */
+  width: 90%;
+  /* Ancho máximo para evitar que sea demasiado grande en pantallas grandes */
+  max-width: 50vh; /* Limita el ancho en base a la altura de la pantalla */
+  /* Forzar una relación de aspecto 1:1 (cuadrado) para evitar distorsión */
+  aspect-ratio: 1 / 1;
+  margin: 1em auto;
 }
 
 #faceCanvas, #specialOverlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Evita que el navegador suavice la imagen, previniendo el aspecto borroso */
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
 }
 
 #specialOverlay {
