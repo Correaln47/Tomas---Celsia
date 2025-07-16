@@ -12,38 +12,38 @@
             justify-content: center;
             min-height: 100vh;
             margin: 0;
-            padding: 20px; 
-            box-sizing: border-box; 
+            padding: 20px;
+            box-sizing: border-box;
             background: #f0f0f0;
-            -webkit-user-select: none; 
-            -ms-user-select: none; 
-            user-select: none; 
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         .main-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             width: 100%;
-            max-width: 500px; 
+            max-width: 500px;
         }
         h2, h3 {
             text-align: center;
             color: #333;
         }
         .robot-orientation {
-            width: 120px; 
+            width: 120px;
             height: auto;
             margin-bottom: 10px;
             text-align: center;
         }
         .robot-body {
-            width: 80px; 
-            height: 120px; 
-            background-color: #777; 
+            width: 80px;
+            height: 120px;
+            background-color: #777;
             border: 2px solid #555;
             border-radius: 10px;
-            position: relative; 
-            margin: 0 auto; 
+            position: relative;
+            margin: 0 auto;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -51,7 +51,7 @@
             padding-top: 10px;
             box-sizing: border-box;
         }
-        .robot-body .arrow-up { 
+        .robot-body .arrow-up {
             font-size: 30px;
             color: white;
             line-height: 1;
@@ -59,7 +59,7 @@
         .robot-front-text {
             font-size: 0.9em;
             color: white;
-            margin-top: 10px; 
+            margin-top: 10px;
         }
         .control-grid {
             display: grid;
@@ -71,7 +71,7 @@
             margin-bottom: 25px;
         }
         .control-button {
-            width: 90px; 
+            width: 90px;
             height: 90px;
             font-size: 18px;
             font-weight: bold;
@@ -145,6 +145,11 @@
             font-size: 0.95em;
             flex-shrink: 0;
         }
+        /* NUEVO: Estilo específico para el slider de volumen */
+        .controls-section input[type="range"] {
+            flex-grow: 1;
+            cursor: pointer;
+        }
         .controls-section select, .controls-section input[type="number"] {
             padding: 8px;
             border-radius: 4px;
@@ -166,9 +171,8 @@
         #button-play-video:hover { background-color: #45a049; }
         #button-skip-video { background-color: #f44336; }
         #button-skip-video:hover { background-color: #da190b; }
-        /* --- NUEVO: Estilo para el botón de activación manual --- */
-        #button-trigger-event { 
-            background-color: #ff9800; 
+        #button-trigger-event {
+            background-color: #ff9800;
             margin-top: 5px;
         }
         #button-trigger-event:hover { background-color: #e68a00; }
@@ -180,7 +184,7 @@
             width: 60px;
             height: 34px;
         }
-        .switch input { 
+        .switch input {
             opacity: 0;
             width: 0;
             height: 0;
@@ -261,6 +265,14 @@
             <button id="button-skip-video">⏭️ Saltar Video Actual / Reiniciar</button>
         </div>
 
+        <div class="controls-section volume-controls">
+            <h3>Control de Volumen del Sistema</h3>
+            <div>
+                <label for="volume-slider">Volumen:</label>
+                <input type="range" id="volume-slider" min="0" max="100" step="1">
+                <span id="volume-percentage" style="margin-left: 15px; font-weight: bold; min-width: 45px; text-align: right;">--%</span>
+            </div>
+        </div>
         <div class="controls-section special-event-controls">
             <h3>Control de Evento Aleatorio</h3>
             <div>
@@ -309,13 +321,16 @@
         const playVideoButton = document.getElementById('button-play-video');
         const skipVideoButton = document.getElementById('button-skip-video');
         
+        // NUEVO: Selectores de Volumen
+        const volumeSlider = document.getElementById('volume-slider');
+        const volumePercentage = document.getElementById('volume-percentage');
+
         const eventToggle = document.getElementById('event-toggle');
         const minTimeInput = document.getElementById('min-time');
         const maxTimeInput = document.getElementById('max-time');
         const initialDelayInput = document.getElementById('initial-delay');
         const moveDurationInput = document.getElementById('move-duration');
         const delayBetweenInput = document.getElementById('delay-between');
-        // --- NUEVO: Selector para el botón manual ---
         const triggerEventButton = document.getElementById('button-trigger-event');
 
         const mainAppUrl = `http://${window.location.hostname}:5000`;
@@ -324,7 +339,7 @@
         // --- Funciones de Comunicación ---
 
         function sendMoveCommand(command) {
-            fetch(`${movementAppUrl}/control`, { 
+            fetch(`${movementAppUrl}/control`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ command: command })
@@ -333,12 +348,43 @@
         }
 
         function sendStopCommand() {
-            fetch(`${movementAppUrl}/stop`, { 
+            fetch(`${movementAppUrl}/stop`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({})
             })
             .catch(error => console.error("Error stopping:", error));
+        }
+
+        // --- NUEVO: Funciones de Volumen ---
+        async function fetchVolume() {
+            try {
+                const response = await fetch(`${movementAppUrl}/get_volume`);
+                const data = await response.json();
+                if (response.ok) {
+                    volumeSlider.value = data.volume;
+                    volumePercentage.textContent = `${data.volume}%`;
+                } else {
+                     volumePercentage.textContent = 'Error';
+                }
+            } catch (error) {
+                console.error('Error fetching volume:', error);
+                volumePercentage.textContent = 'N/A';
+            }
+        }
+        
+        let volumeDebounceTimer;
+        function setVolume(volume) {
+            volumePercentage.textContent = `${volume}%`;
+            // Evitar enviar demasiadas peticiones mientras se arrastra el slider
+            clearTimeout(volumeDebounceTimer);
+            volumeDebounceTimer = setTimeout(() => {
+                fetch(`${movementAppUrl}/set_volume`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ volume: parseInt(volume, 10) })
+                }).catch(error => console.error('Error setting volume:', error));
+            }, 100); // Envía la petición 100ms después de que el usuario deja de mover el slider
         }
 
         function sendEventConfig() {
@@ -385,7 +431,6 @@
             }
         }
 
-        // --- NUEVO: Función para activar el evento manualmente ---
         async function triggerSpecialEventManually() {
             console.log('Triggering special event manually...');
             try {
@@ -426,7 +471,7 @@
             try {
                 const response = await fetch(`${mainAppUrl}/list_videos`);
                 const data = await response.json();
-                videoSelect.innerHTML = '<option value="">-- Selecciona un video --</option>'; 
+                videoSelect.innerHTML = '<option value="">-- Selecciona un video --</option>';
                 if (data.videos && data.videos.length > 0) {
                     data.videos.forEach(videoFile => {
                         const option = document.createElement('option');
@@ -454,7 +499,7 @@
         }
         async function skipCurrentVideo() {
             try {
-                await fetch(`${mainAppUrl}/restart`); 
+                await fetch(`${mainAppUrl}/restart`);
             } catch (error) {
                 alert("Error de comunicación al reiniciar.");
             }
@@ -466,11 +511,14 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchVideoList();
             fetchEventConfig();
+            fetchVolume(); // NUEVO: Cargar el volumen inicial
 
             const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
             configInputs.forEach(input => input.addEventListener('change', sendEventConfig));
+            
+            // NUEVO: Listener para el slider de volumen
+            volumeSlider.addEventListener('input', (e) => setVolume(e.target.value));
 
-            // --- NUEVO: Listener para el botón manual ---
             if (triggerEventButton) {
                 triggerEventButton.addEventListener('click', triggerSpecialEventManually);
             }

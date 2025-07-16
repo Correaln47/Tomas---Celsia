@@ -1,15 +1,15 @@
-# movement.py CORREGIDO para que el trigger manual siempre funcione.
-
 from flask import Flask, request, jsonify, render_template
 from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 import time
 import threading
+import subprocess  # NUEVO: Necesario para ejecutar comandos del sistema
+import re          # NUEVO: Necesario para analizar la salida del comando de volumen
 
 factory = PiGPIOFactory()
 app = Flask(__name__)
 
-# --- Configuración de Pines GPIO (SIN CAMBIOS) ---
+# --- Configuración de Pines GPIO ---
 FWD_A = 18
 REV_A = 27
 FWD_B = 19
@@ -20,7 +20,7 @@ motorA_rev = LED(REV_A, pin_factory=factory)
 motorB_fwd = LED(FWD_B, pin_factory=factory)
 motorB_rev = LED(REV_B, pin_factory=factory)
 
-# Configuración del evento especial (recibida desde app.py)
+# --- Configuración del evento especial ---
 special_event_config = {
     "enabled": False,
     "initial_delay": 1000,
@@ -28,10 +28,55 @@ special_event_config = {
     "delay_between": 500
 }
 
-# --- Funciones de Control (SIN CAMBIOS) ---
+# --- NUEVO: Funciones para el Control de Volumen ---
+
+def get_system_volume():
+    """
+    Obtiene el volumen actual del sistema usando 'amixer'.
+    Devuelve: El nivel de volumen (0-100) o None si hay un error.
+    """
+    try:
+        # Ejecuta el comando para obtener la información del control de volumen 'Master'
+        result = subprocess.run(
+            ["amixer", "sget", "Master"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        # Busca el porcentaje de volumen en la salida usando una expresión regular
+        match = re.search(r"\[(\d{1,3})%\]", result.stdout)
+        if match:
+            return int(match.group(1))
+        print("ERROR: No se pudo encontrar el porcentaje de volumen en la salida de amixer.")
+        return None
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"ERROR al obtener el volumen del sistema: {e}")
+        return None
+
+def set_system_volume(volume):
+    """
+    Establece el volumen del sistema usando 'amixer'.
+    Args: volume (int): El nivel de volumen deseado (0-100).
+    """
+    if not 0 <= volume <= 100:
+        print(f"ERROR: El volumen debe estar entre 0 y 100. Se recibió: {volume}")
+        return False
+    try:
+        # Ejecuta el comando para establecer el volumen
+        subprocess.run(
+            ["amixer", "-M", "sset", "Master", f"{volume}%"],
+            check=True,
+            capture_output=True
+        )
+        print(f"Volumen del sistema establecido en: {volume}%")
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        print(f"ERROR al establecer el volumen del sistema: {e}")
+        return False
+
+# --- Funciones de Control de Movimiento (sin cambios) ---
 
 def stop_all():
-    """Detiene ambos motores."""
     motorA_fwd.off()
     motorA_rev.off()
     motorB_fwd.off()
@@ -39,7 +84,6 @@ def stop_all():
     print("MOTORES DETENIDOS")
 
 def turn_left():
-    """Mueve ambos motores hacia adelante."""
     motorA_rev.off()
     motorA_fwd.on()
     motorB_rev.off()
@@ -47,7 +91,6 @@ def turn_left():
     print("Moviendo hacia ADELANTE")
 
 def turn_right():
-    """Mueve ambos motores hacia atrás."""
     motorA_rev.on()
     motorA_fwd.on()
     motorB_rev.on()
@@ -55,7 +98,6 @@ def turn_right():
     print("Moviendo hacia ATRÁS")
 
 def move_backward():
-    """Gira a la izquierda."""
     motorA_rev.on()
     motorA_fwd.on()
     motorB_rev.off()
@@ -63,20 +105,14 @@ def move_backward():
     print("Girando a la IZQUIERDA")
 
 def move_forward():
-    """Gira a la derecha."""
     motorA_rev.off()
     motorA_fwd.on()
     motorB_rev.on()
     motorB_fwd.on()
     print("Girando a la DERECHA")
 
-# --- Lógica de la secuencia de movimiento del evento ---
+# --- Lógica de la secuencia de movimiento del evento (sin cambios) ---
 def run_special_event_movement():
-    # --- CORRECCIÓN: Se elimina la comprobación 'enabled'. ---
-    # La decisión de ejecutar esto ya se tomó en app.py.
-    # if not special_event_config["enabled"]:
-    #     return
-
     print("--- INICIANDO SECUENCIA DE MOVIMIENTO ESPECIAL ---")
     initial_delay_s = special_event_config["initial_delay"] / 1000.0
     move_duration_s = special_event_config["move_duration"] / 1000.0
@@ -105,6 +141,28 @@ def run_special_event_movement():
 def index():
     return render_template("index.html")
 
+# --- NUEVO: Rutas para el Control de Volumen ---
+@app.route("/get_volume", methods=["GET"])
+def get_volume_route():
+    volume = get_system_volume()
+    if volume is not None:
+        return jsonify({"status": "ok", "volume": volume})
+    else:
+        return jsonify({"status": "error", "message": "No se pudo obtener el volumen."}), 500
+
+@app.route("/set_volume", methods=["POST"])
+def set_volume_route():
+    data = request.json
+    volume = data.get("volume")
+    if volume is None:
+        return jsonify({"status": "error", "message": "Falta el parámetro de volumen."}), 400
+    
+    if set_system_volume(int(volume)):
+        return jsonify({"status": "ok", "message": f"Volumen establecido en {volume}%."})
+    else:
+        return jsonify({"status": "error", "message": "No se pudo establecer el volumen."}), 500
+
+# --- Rutas de Control de Movimiento y Eventos (sin cambios) ---
 @app.route("/control", methods=["POST"])
 def control():
     data = request.json
@@ -137,8 +195,6 @@ def config_special_event():
 
 @app.route("/trigger_special_event_movement", methods=["POST"])
 def trigger_special_event_movement():
-    """Activa la secuencia de movimiento (llamado por app.py)."""
-    # --- CORRECCIÓN: Se elimina la comprobación para que el trigger manual siempre funcione. ---
     thread = threading.Thread(target=run_special_event_movement)
     thread.start()
     return jsonify({"status": "ok", "message": "Secuencia de movimiento especial iniciada."})
