@@ -8,7 +8,6 @@ document.addEventListener("DOMContentLoaded", function() {
     const faceCanvas = document.getElementById('faceCanvas');
     const videoContainer = document.getElementById('video-container');
     const interactionVideo = document.getElementById('interactionVideo');
-    // --- MODIFICADO: Selector para el nuevo video del evento especial ---
     const randomEventVideo = document.getElementById('randomEventVideo'); 
     const ctx = faceCanvas.getContext('2d');
     
@@ -20,6 +19,16 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioAnalyser = null;
     let audioDataArray = null;
     let isAnalyserReady = false;
+
+    // --- NUEVO: Precargar el video del evento especial para reproducción instantánea ---
+    if (randomEventVideo) {
+        randomEventVideo.preload = 'auto';
+        // Opcional: Cargar la fuente explícitamente si no está en el HTML
+        if (!randomEventVideo.src) {
+             randomEventVideo.src = '/static/special/event.mp4';
+             randomEventVideo.load();
+        }
+    }
 
     // --- Funciones de Dibujo y Audio (sin cambios) ---
     function drawFace(emotion, mouthState = "neutral", amplitude = 0) {
@@ -86,7 +95,6 @@ document.addEventListener("DOMContentLoaded", function() {
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
         const mouthState = isAudioPlaying ? "talking" : "neutral";
         
-        // --- MODIFICADO: No dibujar la cara si algún video está activo ---
         if (videoContainer.style.display !== "flex" && randomEventVideo.style.display !== 'block') {
             drawFace(currentEmotion, mouthState, amplitude);
         } else {
@@ -115,14 +123,12 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
-                console.log(`JS: Forced video received: ${data.forced_video}`);
                 currentForcedVideoProcessed = data.forced_video;
                 playSpecificVideo(data.forced_video);
                 return;
             }
 
             if (!currentForcedVideoProcessed) {
-                // --- MODIFICADO: Chequea el nuevo video del evento especial ---
                 if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
                     currentEmotion = data.emotion;
                     videoFeed.style.display = "none";
@@ -135,7 +141,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     snapshotContainer.style.display = "none";
                 }
             }
-        }).catch(err => console.error("JS: Polling error:", err));
+        }).catch(err => console.error("Polling error:", err));
     }
 
     function triggerAudio(emotion) {
@@ -164,22 +170,24 @@ document.addEventListener("DOMContentLoaded", function() {
         }).catch(restartInteraction);
     }
 
-    // --- NUEVO: Lógica optimizada para reproducir cualquier video ---
     function playSpecificVideo(videoPath) {
         const isSpecial = videoPath.includes('special/event.mp4');
         
         console.log(`Playing ${isSpecial ? 'special' : 'normal'} video: ${videoPath}`);
 
         if (isSpecial) {
-            // Lógica para el video del evento especial (más eficiente)
-            faceCanvas.style.display = 'none'; // Ocultar solo la cara
-            randomEventVideo.style.display = 'block'; // Mostrar el video en su lugar
-            randomEventVideo.src = `/static/${videoPath}`; 
+            faceCanvas.style.display = 'none'; 
+            randomEventVideo.style.display = 'block';
+            
+            // Si el video ya está cargado (gracias a preload), la reproducción será más rápida
+            if (randomEventVideo.src !== new URL(videoPath, window.location.origin).href) {
+                 randomEventVideo.src = videoPath;
+            }
             
             const onEnd = () => {
-                randomEventVideo.style.display = 'none'; // Ocultar el video
-                faceCanvas.style.display = 'block'; // Mostrar la cara de nuevo
-                currentForcedVideoProcessed = null; // Permitir nuevas interacciones
+                randomEventVideo.style.display = 'none';
+                faceCanvas.style.display = 'block'; 
+                currentForcedVideoProcessed = null; 
             };
             
             randomEventVideo.onended = onEnd;
@@ -187,7 +195,6 @@ document.addEventListener("DOMContentLoaded", function() {
             randomEventVideo.play().catch(e => { console.error("Error playing special video:", e); onEnd(); });
 
         } else {
-            // Lógica para videos de interacción normales (sin cambios)
             mainContainer.style.display = 'none';
             videoContainer.style.display = 'flex';
             interactionVideo.src = videoPath.startsWith('/static') ? videoPath : `/static/video/${videoPath}`;
@@ -199,12 +206,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function restartInteraction() {
-        console.log("JS: Restarting interaction by reloading the page.");
         window.location.reload();
     }
 
     // --- Inicialización ---
-    console.log("JS: Document loaded. Initializing client.");
     animateFace();
     setInterval(pollDetectionStatus, 500);
 });
