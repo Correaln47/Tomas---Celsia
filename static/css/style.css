@@ -48,24 +48,33 @@ body {
 }
 
 #faceContainer {
-  position: relative;
+  position: relative; /* Necesario para posicionar el canvas dentro */
   display: block;
-  /* Ancho relativo para adaptarse a la pantalla */
   width: 90%;
-  /* Ancho máximo para evitar que sea demasiado grande en pantallas grandes */
-  max-width: 50vh; /* Limita el ancho en base a la altura de la pantalla */
-  /* Forzar una relación de aspecto 1:1 (cuadrado) para evitar distorsión */
-  aspect-ratio: 1 / 1;
+  height: 50vh;
   margin: 1em auto;
+  /* Se elimina flexbox para no alterar el flujo del documento */
 }
 
+/* El canvas se ajusta para ser un cuadrado y se centra */
 #faceCanvas, #specialOverlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* Evita que el navegador suavice la imagen, previniendo el aspecto borroso */
+  /* 1. Centramos el canvas en el contenedor */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  /* 2. Forzamos el canvas a ser un cuadrado perfecto.
+     Usamos 50vh como base, que es la altura del contenedor. */
+  width: 50vh;
+  height: 50vh;
+  
+  /* 3. Nos aseguramos de que el canvas no se desborde si la pantalla es muy estrecha */
+  max-width: 100%;
+  max-height: 100%;
+
+  /* 4. Le decimos al navegador que mantenga los píxeles nítidos y no los suavice.
+     Esto combate el efecto borroso/pixelado. */
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
