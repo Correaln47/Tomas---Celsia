@@ -10,10 +10,7 @@
       
       <div id="faceContainer">
         <canvas id="faceCanvas"></canvas>
-      </div>
-
-      <div id="specialOverlay" style="display: none;">
-          <video id="specialVideo" width="100%" height="100%"></video>
+        <video id="randomEventVideo" preload="metadata" style="display: none; width: 100%; height: 100%;"></video>
       </div>
 
       <img id="videoFeed" src="/video_feed" alt="Live Video Feed">
@@ -36,7 +33,7 @@
       <video id="interactionVideo" controls autoplay></video>
     </div>
 
-    <script src="/static/js/script.js"></script>
+    <script src="/static/js/script.js"></script> 
     
     <script>
       // El script del carrusel no necesita cambios.
@@ -74,5 +71,5 @@
         }
       });
     </script>
-    </body>
+  </body>
 </html>

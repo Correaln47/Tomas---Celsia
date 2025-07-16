@@ -8,9 +8,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const faceCanvas = document.getElementById('faceCanvas');
     const videoContainer = document.getElementById('video-container');
     const interactionVideo = document.getElementById('interactionVideo');
-    // CORRECCIÓN: Selectores para el overlay y video del evento especial
-    const specialOverlay = document.getElementById('specialOverlay');
-    const specialVideo = document.getElementById('specialVideo');
+    // --- MODIFICADO: Selector para el nuevo video del evento especial ---
+    const randomEventVideo = document.getElementById('randomEventVideo'); 
     const ctx = faceCanvas.getContext('2d');
     
     // --- Variables de Estado ---
@@ -54,7 +53,6 @@ document.addEventListener("DOMContentLoaded", function() {
             ctx.fillStyle = "black";
             ctx.fill();
         } else {
-             // Lógica simplificada de dibujo de boca para otras emociones...
             ctx.moveTo(cw/2 - mouthRadiusX, mouthCenterY);
             ctx.lineTo(cw/2 + mouthRadiusX, mouthCenterY);
             ctx.stroke();
@@ -87,7 +85,9 @@ document.addEventListener("DOMContentLoaded", function() {
         requestAnimationFrame(animateFace);
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
         const mouthState = isAudioPlaying ? "talking" : "neutral";
-        if (videoContainer.style.display !== "flex" && specialOverlay.style.display !== 'block') {
+        
+        // --- MODIFICADO: No dibujar la cara si algún video está activo ---
+        if (videoContainer.style.display !== "flex" && randomEventVideo.style.display !== 'block') {
             drawFace(currentEmotion, mouthState, amplitude);
         } else {
             ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
@@ -117,12 +117,13 @@ document.addEventListener("DOMContentLoaded", function() {
             if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
                 console.log(`JS: Forced video received: ${data.forced_video}`);
                 currentForcedVideoProcessed = data.forced_video;
-                playSpecificVideo(data.forced_video); // El backend ahora da la ruta completa
+                playSpecificVideo(data.forced_video);
                 return;
             }
 
             if (!currentForcedVideoProcessed) {
-                if (data.detected && !isAudioPlaying && interactionVideo.paused && specialVideo.paused) {
+                // --- MODIFICADO: Chequea el nuevo video del evento especial ---
+                if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
                     currentEmotion = data.emotion;
                     videoFeed.style.display = "none";
                     snapshotContainer.style.display = "block";
@@ -163,33 +164,37 @@ document.addEventListener("DOMContentLoaded", function() {
         }).catch(restartInteraction);
     }
 
-    // --- CORRECCIÓN: Lógica unificada para reproducir cualquier video ---
+    // --- NUEVO: Lógica optimizada para reproducir cualquier video ---
     function playSpecificVideo(videoPath) {
         const isSpecial = videoPath.includes('special/event.mp4');
         
         console.log(`Playing ${isSpecial ? 'special' : 'normal'} video: ${videoPath}`);
 
         if (isSpecial) {
-            // Lógica para el video del evento especial
-            mainContainer.style.display = 'flex'; // Asegurarse que la UI principal esté visible
-            videoContainer.style.display = 'none'; // Ocultar el contenedor de video normal
-            specialOverlay.style.display = 'block'; // Mostrar el overlay
-            specialVideo.src = `/static/${videoPath}`; // Usar el elemento de video especial
-            specialVideo.onended = () => {
-                specialOverlay.style.display = 'none'; // Solo ocultar el overlay al terminar
-                currentForcedVideoProcessed = null;
+            // Lógica para el video del evento especial (más eficiente)
+            faceCanvas.style.display = 'none'; // Ocultar solo la cara
+            randomEventVideo.style.display = 'block'; // Mostrar el video en su lugar
+            randomEventVideo.src = `/static/${videoPath}`; 
+            
+            const onEnd = () => {
+                randomEventVideo.style.display = 'none'; // Ocultar el video
+                faceCanvas.style.display = 'block'; // Mostrar la cara de nuevo
+                currentForcedVideoProcessed = null; // Permitir nuevas interacciones
             };
-            specialVideo.onerror = specialVideo.onended;
-            specialVideo.play().catch(e => { console.error("Error playing special video:", e); specialVideo.onended(); });
+            
+            randomEventVideo.onended = onEnd;
+            randomEventVideo.onerror = onEnd;
+            randomEventVideo.play().catch(e => { console.error("Error playing special video:", e); onEnd(); });
+
         } else {
-            // Lógica para videos de interacción normales
-            mainContainer.style.display = 'none'; // Ocultar la UI principal
-            specialOverlay.style.display = 'none';
-            videoContainer.style.display = 'flex'; // Mostrar el contenedor de video normal
-            interactionVideo.src = `/static/video/${videoPath}`; // Usar el elemento de video normal
-            interactionVideo.onended = restartInteraction; // Reiniciar todo al terminar
-            interactionVideo.onerror = interactionVideo.onended;
-            interactionVideo.play().catch(e => { console.error("Error playing interaction video:", e); interactionVideo.onended(); });
+            // Lógica para videos de interacción normales (sin cambios)
+            mainContainer.style.display = 'none';
+            videoContainer.style.display = 'flex';
+            interactionVideo.src = videoPath.startsWith('/static') ? videoPath : `/static/video/${videoPath}`;
+            
+            interactionVideo.onended = restartInteraction;
+            interactionVideo.onerror = restartInteraction;
+            interactionVideo.play().catch(e => { console.error("Error playing interaction video:", e); restartInteraction(); });
         }
     }
 

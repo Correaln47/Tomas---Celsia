@@ -160,11 +160,9 @@ def special_event_scheduler():
             # Si la espera no fue interrumpida y el evento sigue activo...
             if special_event_config["enabled"]:
                 # Comprueba si hay alguna otra interacción en curso.
-                # Esta es una comprobación simple, se puede hacer más robusta si es necesario.
                 if forced_video_to_play is None:
                     print("SCHEDULER: ¡Activando evento especial!")
                     # 1. Fuerza la reproducción del video especial en el frontend.
-                    #    Usamos un nombre de archivo único para evitar conflictos.
                     forced_video_to_play = "special/event.mp4"
                     # 2. Envía la orden de movimiento al servidor de movimiento.
                     try:
@@ -239,8 +237,31 @@ def restart_route():
     global restart_requested
     restart_requested = True
     return jsonify({"status": "restarted"})
+    
+# --- NUEVO: Ruta para activar manualmente el evento especial ---
+@app.route('/trigger_special_event_manually', methods=['POST'])
+def trigger_special_event_manually_route():
+    """Activa el evento especial manualmente, por ejemplo desde la UI de movimiento."""
+    global forced_video_to_play
 
-# --- NUEVO: Rutas centralizadas para la configuración del evento ---
+    if forced_video_to_play is not None:
+        return jsonify({"status": "error", "message": "Otra interacción ya está en curso."}), 409
+
+    print("MANUAL TRIGGER: ¡Activando evento especial manualmente!")
+    
+    # 1. Forzar la reproducción del video
+    forced_video_to_play = "special/event.mp4"
+    
+    # 2. Enviar la orden de movimiento
+    try:
+        requests.post(f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement")
+    except requests.exceptions.RequestException as e:
+        print(f"MANUAL TRIGGER ERROR: No se pudo contactar al servidor de movimiento: {e}")
+        return jsonify({"status": "warning", "message": "Video triggered, but could not contact movement server."}), 503
+        
+    return jsonify({"status": "ok", "message": "Evento especial activado manualmente."})
+
+# --- Rutas centralizadas para la configuración del evento ---
 @app.route('/config_special_event', methods=['POST'])
 def config_special_event():
     """Recibe la configuración COMPLETA desde la UI de movimiento."""
