@@ -1,6 +1,6 @@
-# movement.py CORREGIDO para restaurar la interfaz y la lógica de movimiento original
+# movement.py CORREGIDO para que el trigger manual siempre funcione.
 
-from flask import Flask, request, jsonify, render_template # <--- CORRECCIÓN: Se vuelve a importar render_template
+from flask import Flask, request, jsonify, render_template
 from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 import time
@@ -28,7 +28,7 @@ special_event_config = {
     "delay_between": 500
 }
 
-# --- Funciones de Control (SIN CAMBIOS, respetando la lógica del hardware) ---
+# --- Funciones de Control (SIN CAMBIOS) ---
 
 def stop_all():
     """Detiene ambos motores."""
@@ -39,7 +39,7 @@ def stop_all():
     print("MOTORES DETENIDOS")
 
 def turn_left():
-    """Mueve ambos motores hacia adelante (según la lógica original del usuario)."""
+    """Mueve ambos motores hacia adelante."""
     motorA_rev.off()
     motorA_fwd.on()
     motorB_rev.off()
@@ -47,7 +47,7 @@ def turn_left():
     print("Moviendo hacia ADELANTE")
 
 def turn_right():
-    """Mueve ambos motores hacia atrás (según la lógica original del usuario)."""
+    """Mueve ambos motores hacia atrás."""
     motorA_rev.on()
     motorA_fwd.on()
     motorB_rev.on()
@@ -55,7 +55,7 @@ def turn_right():
     print("Moviendo hacia ATRÁS")
 
 def move_backward():
-    """Gira a la izquierda (según la lógica original del usuario)."""
+    """Gira a la izquierda."""
     motorA_rev.on()
     motorA_fwd.on()
     motorB_rev.off()
@@ -63,17 +63,19 @@ def move_backward():
     print("Girando a la IZQUIERDA")
 
 def move_forward():
-    """Gira a la derecha (según la lógica original del usuario)."""
+    """Gira a la derecha."""
     motorA_rev.off()
     motorA_fwd.on()
     motorB_rev.on()
     motorB_fwd.on()
     print("Girando a la DERECHA")
 
-# --- Lógica de la secuencia de movimiento del evento (SIN CAMBIOS) ---
+# --- Lógica de la secuencia de movimiento del evento ---
 def run_special_event_movement():
-    if not special_event_config["enabled"]:
-        return
+    # --- CORRECCIÓN: Se elimina la comprobación 'enabled'. ---
+    # La decisión de ejecutar esto ya se tomó en app.py.
+    # if not special_event_config["enabled"]:
+    #     return
 
     print("--- INICIANDO SECUENCIA DE MOVIMIENTO ESPECIAL ---")
     initial_delay_s = special_event_config["initial_delay"] / 1000.0
@@ -99,32 +101,25 @@ def run_special_event_movement():
 
 # --- Rutas Flask ---
 
-# --- CORRECCIÓN: Se restaura la ruta principal para que la página sea visible ---
 @app.route("/")
 def index():
-    """Sirve la página HTML de control."""
     return render_template("index.html")
 
-# --- CORRECCIÓN: Se restaura la lógica de control original que me proporcionaste ---
 @app.route("/control", methods=["POST"])
 def control():
-    """Recibe comandos de dirección y activa los motores."""
     data = request.json
     command = data.get("command")
-
-    # Lógica de movimiento restaurada a la original del usuario
     if command == "forward":
-        turn_left() # Llama a la función que mueve hacia adelante
+        turn_left()
     elif command == "backward":
-        turn_right() # Llama a la función que mueve hacia atrás
+        turn_right()
     elif command == "left":
-        move_backward() # Llama a la función que gira a la izquierda
+        move_backward()
     elif command == "right":
-        move_forward() # Llama a la función que gira a la derecha
+        move_forward()
     else:
         stop_all()
         return jsonify({"status": "error", "message": "Comando no reconocido"}), 400
-
     return jsonify({"status": "ok", "command": command})
 
 @app.route("/stop", methods=["POST"])
@@ -134,7 +129,6 @@ def stop_command():
 
 @app.route("/config_special_event", methods=["POST"])
 def config_special_event():
-    """Recibe y guarda la configuración del evento especial desde app.py."""
     global special_event_config
     data = request.json
     special_event_config.update(data)
@@ -144,12 +138,10 @@ def config_special_event():
 @app.route("/trigger_special_event_movement", methods=["POST"])
 def trigger_special_event_movement():
     """Activa la secuencia de movimiento (llamado por app.py)."""
-    if special_event_config["enabled"]:
-        thread = threading.Thread(target=run_special_event_movement)
-        thread.start()
-        return jsonify({"status": "ok", "message": "Secuencia de movimiento especial iniciada."})
-    else:
-        return jsonify({"status": "disabled", "message": "El evento especial está desactivado."})
+    # --- CORRECCIÓN: Se elimina la comprobación para que el trigger manual siempre funcione. ---
+    thread = threading.Thread(target=run_special_event_movement)
+    thread.start()
+    return jsonify({"status": "ok", "message": "Secuencia de movimiento especial iniciada."})
 
 # --- Inicio de la Aplicación ---
 if __name__ == "__main__":

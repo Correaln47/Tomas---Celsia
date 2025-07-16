@@ -20,15 +20,23 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioDataArray = null;
     let isAnalyserReady = false;
 
-    // --- Precargar el video del evento especial para reproducción instantánea ---
+    // --- Precargar y "calentar" el video del evento especial ---
     if (randomEventVideo) {
         randomEventVideo.preload = 'auto';
-        // Asignamos la ruta correcta para que el navegador la descargue
-        if (!randomEventVideo.src) {
-             randomEventVideo.src = '/static/special/event.mp4';
-             randomEventVideo.load();
-        }
+        randomEventVideo.src = '/static/special/event.mp4';
+        
+        // --- NUEVO: "Calentar" el decodificador de video ---
+        // Esto fuerza al navegador a preparar el video para una reproducción fluida.
+        randomEventVideo.addEventListener('canplaythrough', () => {
+            console.log("Special event video is ready for smooth playback.");
+            // Opcional: Descomentar la siguiente línea si el stuttering persiste.
+            // randomEventVideo.play().then(() => { randomEventVideo.pause(); });
+        }, { once: true }); // El listener se ejecuta solo una vez.
+
+        randomEventVideo.load();
     }
+
+    // (El resto del archivo permanece exactamente igual)
 
     // --- Funciones de Dibujo y Audio (sin cambios) ---
     function drawFace(emotion, mouthState = "neutral", amplitude = 0) {
