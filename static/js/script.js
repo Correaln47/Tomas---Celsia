@@ -8,9 +8,9 @@ document.addEventListener("DOMContentLoaded", function() {
     const videoContainer = document.getElementById('video-container');
     const interactionVideo = document.getElementById('interactionVideo');
     const ctx = faceCanvas.getContext('2d');
-    // --- NUEVO: Elementos para el evento especial ---
+    // --- MODIFICADO: Elementos para el evento especial ---
     const specialOverlay = document.getElementById('specialOverlay');
-    const specialAudio = document.getElementById('specialAudio');
+    const specialVideo = document.getElementById('specialVideo'); // Se reemplaza el audio por el video
 
 
     // --- Variables de Estado ---
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioAnalyser = null;
     let audioDataArray = null;
     let isAnalyserReady = false;
-    // --- NUEVO: Flag de estado para el evento especial ---
+    // --- Flag de estado para el evento especial ---
     let isSpecialEventActive = false;
 
 
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function animateFace() {
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
         const mouthState = isAudioPlaying ? "talking" : currentEmotion;
-        // --- NUEVO: No dibujar la cara si el evento especial o el video grande están activos
+        // No dibujar la cara si el evento especial o el video grande están activos
         if (videoContainer.style.display !== "flex" && !isSpecialEventActive) {
             drawFace(currentEmotion, mouthState, amplitude);
         } else {
@@ -192,7 +192,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Lógica Principal de Interacción ---
 
     function pollDetectionStatus() {
-        // --- NUEVO: Pausar el polling si el evento especial está activo ---
+        // Pausar el polling si el evento especial está activo
         if (isSpecialEventActive) {
             console.log("JS: Special event active, polling paused.");
             return;
@@ -272,7 +272,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function triggerAudio(emotion) {
-        // --- NUEVO: No disparar audio si el evento especial está activo
+        // No disparar audio si el evento especial está activo
         if (isSpecialEventActive) return;
 
         if (isAudioPlaying) {
@@ -337,7 +337,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function triggerVideo() {
-        // --- NUEVO: No disparar video si el evento especial está activo
+        // No disparar video si el evento especial está activo
         if (isSpecialEventActive) return;
 
         if (currentForcedVideoProcessed) {
@@ -443,7 +443,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
 
-    // --- NUEVO: Lógica completa para el Evento Especial Aleatorio ---
+    // --- MODIFICADO: Lógica completa para el Evento Especial con Video ---
     function triggerSpecialEvent() {
         // No disparar si ya hay otra interacción importante en curso
         if (isAudioPlaying || (interactionVideo && !interactionVideo.paused) || currentForcedVideoProcessed) {
@@ -453,35 +453,46 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
 
-        console.log("JS: Activating special event...");
+        console.log("JS: Activating special event with video...");
         isSpecialEventActive = true;
 
-        // Ocultar solo la cara, no todo el 'main-container'
+        // Ocultar la cara y mostrar el contenedor del video especial
         faceCanvas.style.display = 'none';
         specialOverlay.style.display = 'block';
 
-        // Reproducir el audio especial
-        specialAudio.currentTime = 0;
-        specialAudio.play().catch(error => console.error("Error al reproducir audio especial:", error));
+        // Asignar el video y reproducirlo
+        specialVideo.src = '/static/special/event.mp4'; // Ruta al video
+        specialVideo.currentTime = 0;
 
-        // Obtener la duración del audio para que el overlay dure lo mismo
-        const audioDuration = specialAudio.duration;
-        // Usar 5 segundos como fallback si la duración no está disponible
-        const displayDuration = (audioDuration && isFinite(audioDuration)) ? audioDuration : 5; 
+        // Limpiar el handler anterior para evitar duplicados
+        specialVideo.onended = null;
+        specialVideo.onerror = null;
 
-        // Temporizador para volver a la normalidad
-        setTimeout(() => {
-            console.log("JS: Finalizing special event.");
+        // Cuando el video termina, volver a la normalidad
+        specialVideo.onended = () => {
+            console.log("JS: Special event video finished.");
             specialOverlay.style.display = 'none';
             faceCanvas.style.display = 'block';
             isSpecialEventActive = false;
-        }, displayDuration * 1000);
+            // Limpiar el src para liberar memoria
+            specialVideo.removeAttribute('src');
+            specialVideo.load();
+        };
+
+        specialVideo.onerror = (e) => {
+            console.error("JS: Error playing special event video:", e);
+            specialOverlay.style.display = 'none';
+            faceCanvas.style.display = 'block';
+            isSpecialEventActive = false;
+        };
+
+        specialVideo.play().catch(error => console.error("Error al reproducir video especial:", error));
     }
 
     function setupNextTrigger() {
         // --- Configuración Personalizable del Evento Especial ---
-        const minSeconds = 120; // Mínimo de segundos para esperar (3 minutos)
-        const maxSeconds = 180; // Máximo de segundos para esperar (5 minutos)
+        const minSeconds = 120; // Mínimo de segundos para esperar (2 minutos)
+        const maxSeconds = 180; // Máximo de segundos para esperar (3 minutos)
 
         const randomDelay = Math.random() * (maxSeconds - minSeconds) + minSeconds;
         console.log(`JS: Next special event scheduled in ${Math.round(randomDelay)} seconds.`);
@@ -508,11 +519,11 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     document.getElementById('main-container').style.display = "flex";
 
-    // --- NUEVO: Iniciar el ciclo del evento especial aleatorio ---
-    if (specialOverlay && specialAudio) {
+    // --- MODIFICADO: Iniciar el ciclo del evento especial aleatorio ---
+    if (specialOverlay && specialVideo) {
         setupNextTrigger();
     } else {
-        console.error("JS: specialOverlay or specialAudio element not found! The special event will not run.");
+        console.error("JS: specialOverlay or specialVideo element not found! The special event will not run.");
     }
 
     const skipButton = document.getElementById('button-skip-video-main');
