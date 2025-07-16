@@ -258,12 +258,22 @@
     <div class="controls-section special-event-controls">
         <h3>Control de Evento Aleatorio</h3>
         <div>
-            <label for="event-toggle">Activar Evento Aleatorio:</label>
+            <label for="event-toggle">Activar Evento (Video y Mov.):</label>
             <label class="switch">
                 <input type="checkbox" id="event-toggle">
                 <span class="slider"></span>
             </label>
         </div>
+        <div>
+            <label for="min-time">Tiempo Mínimo (seg):</label>
+            <input type="number" id="min-time" value="120" min="10" step="10">
+        </div>
+        <div>
+            <label for="max-time">Tiempo Máximo (seg):</label>
+            <input type="number" id="max-time" value="180" min="10" step="10">
+        </div>
+        <hr style="width: 80%; border-top: 1px solid #ccc; margin: 10px 0;">
+        <p style="margin: 0; font-size: 0.9em; color: #555;">Configuración de Movimientos del Evento:</p>
         <div>
             <label for="initial-delay">Retardo Inicial (ms):</label>
             <input type="number" id="initial-delay" value="1000" min="0" step="100">
@@ -292,31 +302,31 @@
     const videoSelect = document.getElementById('video-select');
     const playVideoButton = document.getElementById('button-play-video');
     const skipVideoButton = document.getElementById('button-skip-video');
-
-    // --- NUEVO: Selectores para el evento aleatorio ---
+    
+    // --- Selectores para el evento aleatorio (MODIFICADOS) ---
     const eventToggle = document.getElementById('event-toggle');
+    const minTimeInput = document.getElementById('min-time');
+    const maxTimeInput = document.getElementById('max-time');
     const initialDelayInput = document.getElementById('initial-delay');
     const moveDurationInput = document.getElementById('move-duration');
     const delayBetweenInput = document.getElementById('delay-between');
 
     const mainAppUrl = `http://${window.location.hostname}:5000`;
+    const movementAppUrl = `http://${window.location.hostname}:5001`; // <-- URL directa al servidor de movimiento
 
-    // --- Funciones de Comunicación con el Servidor ---
+    // --- Funciones de Comunicación ---
 
     function sendMoveCommand(command) {
-      fetch("/control", { 
+      fetch(`${movementAppUrl}/control`, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: command })
-      })
-      .then(response => {
-        if (!response.ok) console.error("Move command failed: " + response.status);
       })
       .catch(error => console.error("Error sending move command:", error));
     }
 
     function sendStopCommand() {
-      fetch("/stop", { 
+      fetch(`${movementAppUrl}/stop`, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})
@@ -324,35 +334,50 @@
       .catch(error => console.error("Error stopping:", error));
     }
 
-    // --- NUEVO: Función para enviar la configuración del evento ---
+    // --- Función MODIFICADA para enviar la nueva configuración completa ---
     function sendEventConfig() {
+        // Validación simple para que min no sea mayor que max
+        let minTime = parseInt(minTimeInput.value, 10);
+        let maxTime = parseInt(maxTimeInput.value, 10);
+        if (minTime > maxTime) {
+            console.warn("El tiempo mínimo no puede ser mayor al máximo. Ajustando...");
+            minTime = maxTime;
+            minTimeInput.value = maxTime;
+        }
+
         const config = {
             enabled: eventToggle.checked,
+            min_time: minTime,
+            max_time: maxTime,
             initial_delay: parseInt(initialDelayInput.value, 10),
             move_duration: parseInt(moveDurationInput.value, 10),
             delay_between: parseInt(delayBetweenInput.value, 10)
         };
         
-        fetch("/config_special_event", {
+        // Ahora enviamos la configuración a la aplicación principal (app.py)
+        fetch(`${mainAppUrl}/config_special_event`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(config)
         })
         .then(response => response.json())
         .then(data => {
-            console.log("Config saved:", data.message);
+            console.log("Config sent to main app:", data.message);
         })
         .catch(error => console.error("Error saving config:", error));
     }
 
-    // --- NUEVO: Función para cargar la configuración actual ---
+    // --- Función MODIFICADA para cargar la configuración completa ---
     async function fetchEventConfig() {
         try {
-            const response = await fetch("/get_special_event_config");
-            if (!response.ok) throw new Error("Failed to fetch config");
+            // La configuración ahora se pide a la app principal
+            const response = await fetch(`${mainAppUrl}/get_special_event_config`);
+            if (!response.ok) throw new Error("Failed to fetch config from main app");
             const config = await response.json();
             
             eventToggle.checked = config.enabled;
+            minTimeInput.value = config.min_time;
+            maxTimeInput.value = config.max_time;
             initialDelayInput.value = config.initial_delay;
             moveDurationInput.value = config.move_duration;
             delayBetweenInput.value = config.delay_between;
@@ -361,30 +386,24 @@
         }
     }
 
-    // --- Lógica de los botones de movimiento (sin cambios) ---
+    // --- Lógica de los botones de movimiento ---
     ['forward', 'backward', 'left', 'right'].forEach(direction => {
         const button = buttons[direction];
         if (button) {
             const startEvent = () => sendMoveCommand(direction);
             button.addEventListener('mousedown', startEvent);
-            button.addEventListener('touchstart', (e) => {
-                e.preventDefault(); 
-                startEvent();
-            }, { passive: false });
+            button.addEventListener('touchstart', (e) => { e.preventDefault(); startEvent(); }, { passive: false });
             
             const stopEvents = ['mouseup', 'mouseleave', 'touchend', 'touchcancel'];
-            stopEvents.forEach(event => button.addEventListener(event, sendStopCommand));
+            stopEvents.forEach(event => button.addEventListener(event, (e) => { e.preventDefault(); sendStopCommand(); }));
         }
     });
     if (buttons.stop) {
         buttons.stop.addEventListener('click', sendStopCommand);
-        buttons.stop.addEventListener('touchstart', (e) => {
-            e.preventDefault(); 
-            sendStopCommand();
-        }, { passive: false });
+        buttons.stop.addEventListener('touchstart', (e) => { e.preventDefault(); sendStopCommand(); }, { passive: false });
     }
 
-    // --- Lógica de controles de video (sin cambios) ---
+    // --- Lógica de controles de video ---
     async function fetchVideoList() {
         try {
             const response = await fetch(`${mainAppUrl}/list_videos`);
@@ -397,25 +416,20 @@
                     option.textContent = videoFile.split('.')[0].replace(/_/g, ' ');
                     videoSelect.appendChild(option);
                 });
-            } else {
-                videoSelect.innerHTML = '<option value="">No hay videos</option>';
             }
         } catch (error) {
-            console.error("Error fetching video list:", error);
             videoSelect.innerHTML = '<option value="">Error al cargar</option>';
         }
     }
     async function playSelectedVideo() {
         const selectedVideoFile = videoSelect.value;
-        if (!selectedVideoFile) return alert("Por favor, selecciona un video.");
+        if (!selectedVideoFile) return;
         try {
-            const response = await fetch(`${mainAppUrl}/play_specific_video`, {
+            await fetch(`${mainAppUrl}/play_specific_video`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ video_file: selectedVideoFile })
             });
-            const data = await response.json();
-            alert(data.message || data.error || "Respuesta desconocida del servidor.");
         } catch (error) {
             alert("Error de comunicación al reproducir el video.");
         }
@@ -423,7 +437,6 @@
     async function skipCurrentVideo() {
         try {
             await fetch(`${mainAppUrl}/restart`); 
-            alert("Señal de reinicio enviada.");
         } catch (error) {
             alert("Error de comunicación al reiniciar.");
         }
@@ -434,14 +447,11 @@
     // --- Inicialización ---
     document.addEventListener('DOMContentLoaded', () => {
         fetchVideoList();
-        // --- NUEVO: Cargar la configuración del evento al iniciar ---
         fetchEventConfig();
 
-        // --- NUEVO: Añadir listeners para guardar la configuración al cambiar ---
-        eventToggle.addEventListener('change', sendEventConfig);
-        initialDelayInput.addEventListener('change', sendEventConfig);
-        moveDurationInput.addEventListener('change', sendEventConfig);
-        delayBetweenInput.addEventListener('change', sendEventConfig);
+        // Listeners para guardar la configuración al cambiar
+        const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
+        configInputs.forEach(input => input.addEventListener('change', sendEventConfig));
     });
   </script>
 </body>

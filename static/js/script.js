@@ -8,10 +8,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const videoContainer = document.getElementById('video-container');
     const interactionVideo = document.getElementById('interactionVideo');
     const ctx = faceCanvas.getContext('2d');
-    const specialOverlay = document.getElementById('specialOverlay');
-    const specialVideo = document.getElementById('specialVideo');
-
-
+    
     // --- Variables de Estado ---
     let currentEmotion = "neutral";
     let isAudioPlaying = false;
@@ -21,8 +18,6 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioAnalyser = null;
     let audioDataArray = null;
     let isAnalyserReady = false;
-    let isSpecialEventActive = false;
-
 
     // --- Funciones de Dibujo y Audio ---
     function drawFace(emotion, mouthState = "neutral", amplitude = 0) {
@@ -133,7 +128,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function animateFace() {
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
         const mouthState = isAudioPlaying ? "talking" : "neutral";
-        if (videoContainer.style.display !== "flex" && !isSpecialEventActive) {
+        if (videoContainer.style.display !== "flex") {
             drawFace(currentEmotion, mouthState, amplitude);
         } else {
             ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
@@ -167,30 +162,36 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Lógica Principal de Interacción ---
 
     function pollDetectionStatus() {
-        if (isSpecialEventActive) return;
-
         fetch('/detection_status').then(res => {
             if (!res.ok) {
                 console.error(`JS: HTTP error! status: ${res.status}`);
-                // Simplified error handling
                 return null;
             }
             return res.json();
         }).then(data => {
             if (!data) return;
 
+            // Si el servidor pide reiniciar, se recarga la página.
             if (data.restart_requested) {
                 restartInteraction();
                 return;
             }
 
+            // Si el servidor envía un video forzado (incluyendo el del evento especial)
             if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
+                console.log(`JS: Forced video received from server: ${data.forced_video}`);
                 currentForcedVideoProcessed = data.forced_video;
-                const videoUrl = `/static/video/${data.forced_video}`;
+                
+                // Determinar si es el video especial o uno normal
+                const videoUrl = data.forced_video.startsWith('special/') 
+                    ? `/static/${data.forced_video}` 
+                    : `/static/video/${data.forced_video}`;
+
                 playSpecificVideo(videoUrl);
                 return;
             }
 
+            // Lógica de detección de emoción normal
             if (!currentForcedVideoProcessed) {
                 if (data.detected && !isAudioPlaying && interactionVideo.paused) {
                     currentEmotion = data.emotion;
@@ -211,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function triggerAudio(emotion) {
-        if (isSpecialEventActive || isAudioPlaying) return;
+        if (isAudioPlaying) return;
         
         const audioEmotion = ["disgust", "no_face"].includes(emotion) || !emotion ? "neutral" : emotion;
         fetch(`/get_random_audio?emotion=${audioEmotion}`)
@@ -228,7 +229,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function triggerVideo() {
-        if (isSpecialEventActive || currentForcedVideoProcessed) return;
+        if (currentForcedVideoProcessed) return;
 
         document.getElementById('main-container').style.display = "none";
         videoContainer.style.display = "flex";
@@ -250,98 +251,46 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function playSpecificVideo(videoUrl) {
         document.getElementById('main-container').style.display = "none";
-        videoContainer.style.display = "flex";
-        interactionVideo.src = videoUrl;
-        interactionVideo.play().catch(restartInteraction);
+        
+        // Si es el video especial, usamos el elemento de video del overlay
+        const videoElementToPlay = videoUrl.includes('/static/special/') ? specialVideo : interactionVideo;
+        const containerToShow = videoUrl.includes('/static/special/') ? specialOverlay : videoContainer;
+        
+        // Ocultar el contenedor que no se usa
+        const containerToHide = videoElementToPlay === specialVideo ? videoContainer : specialOverlay;
+        containerToHide.style.display = 'none';
 
-        interactionVideo.onended = () => {
+        containerToShow.style.display = 'flex';
+        videoElementToPlay.src = videoUrl;
+
+        // Limpiar eventos anteriores para evitar disparos múltiples
+        videoElementToPlay.onended = null;
+        videoElementToPlay.onerror = null;
+
+        videoElementToPlay.onended = () => {
             currentForcedVideoProcessed = null;
             restartInteraction();
         };
-        interactionVideo.onerror = () => {
+        videoElementToPlay.onerror = () => {
             currentForcedVideoProcessed = null;
             restartInteraction();
         };
+
+        videoElementToPlay.play().catch(e => {
+            console.error("JS: Error playing specific video:", e);
+            restartInteraction();
+        });
     }
 
     function restartInteraction() {
         console.log("JS: Restarting interaction by reloading the page.");
+        // Usar location.reload() es la forma más robusta de resetear el estado del cliente.
         window.location.reload();
-    }
-
-
-    // --- Lógica del Evento Especial Aleatorio ---
-
-    function triggerSpecialEvent() {
-        if (isAudioPlaying || (interactionVideo && !interactionVideo.paused) || currentForcedVideoProcessed) {
-            setTimeout(setupNextTrigger, 30 * 1000); // Postpone
-            return;
-        }
-
-        console.log("JS: Activating special event...");
-        isSpecialEventActive = true;
-
-        faceCanvas.style.display = 'none';
-        specialOverlay.style.display = 'block';
-
-        specialVideo.src = '/static/special/event.mp4'; // Asegúrate que esta ruta es correcta
-        specialVideo.currentTime = 0;
-        
-        // --- NUEVO: Enviar señal al backend cuando el video comienza ---
-        specialVideo.onplaying = () => {
-            console.log("JS: Special event video has started. Sending trigger to backend.");
-            fetch('/trigger_special_event', { method: 'POST' })
-                .then(response => {
-                    if (!response.ok) console.error("JS: Backend failed to acknowledge movement trigger.");
-                    else console.log("JS: Backend acknowledged movement trigger.");
-                })
-                .catch(error => console.error('JS: Error sending trigger signal:', error));
-            
-            // Asegurarse que solo se ejecute una vez
-            specialVideo.onplaying = null; 
-        };
-
-        specialVideo.onended = () => {
-            console.log("JS: Special event finished.");
-            specialOverlay.style.display = 'none';
-            faceCanvas.style.display = 'block';
-            isSpecialEventActive = false;
-            specialVideo.removeAttribute('src');
-            specialVideo.load();
-        };
-        
-        specialVideo.onerror = () => {
-             console.error("JS: Error playing special video.");
-             specialVideo.onended(); // Reutiliza la lógica de finalización para limpiar
-        };
-
-        specialVideo.play().catch(e => specialVideo.onerror());
-    }
-
-    function setupNextTrigger() {
-        // Chequeo rápido para ver si la función debe correr, basado en la config del otro servidor.
-        // No podemos leer la config directamente, pero si el usuario deshabilita el evento,
-        // esto simplemente seguirá corriendo en el cliente sin hacer nada visible, lo cual es aceptable.
-        const minSeconds = 120;
-        const maxSeconds = 180;
-        const randomDelay = (Math.random() * (maxSeconds - minSeconds) + minSeconds) * 1000;
-        
-        console.log(`JS: Next special event check in ${Math.round(randomDelay / 1000)}s.`);
-        setTimeout(() => {
-            triggerSpecialEvent();
-            setupNextTrigger(); // Re-schedule the next one
-        }, randomDelay);
     }
 
     // --- Inicialización ---
     console.log("JS: Document loaded. Initializing.");
     animateFace();
-    pollInterval = setInterval(pollDetectionStatus, 500);
-    
-    // Iniciar el ciclo del evento especial si los elementos existen
-    if (specialOverlay && specialVideo) {
-        setupNextTrigger();
-    } else {
-        console.error("JS: specialOverlay or specialVideo element not found! The special event will not run.");
-    }
+    pollInterval = setInterval(pollDetectionStatus, 500); // Inicia el sondeo al servidor
+    console.log("JS: Client polling started. Awaiting server commands.");
 });

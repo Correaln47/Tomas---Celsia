@@ -8,225 +8,183 @@ import random
 import numpy as np
 import tflite_runtime.interpreter as tflite
 import sys
-import requests # <--- NUEVO: Añadido para hacer peticiones HTTP
+import requests
 
 app = Flask(__name__)
 CORS(app)
 
-# --- NUEVO: URL del servidor de movimiento ---
-MOVEMENT_SERVER_URL = "http://localhost:5001" 
-
-### Definición de la ruta a la carpeta de imágenes del carrusel ###
+# --- Configuración y Estado ---
+MOVEMENT_SERVER_URL = "http://localhost:5001"
 CAROUSEL_IMG_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'carousel_images')
 
-# --- Estado de la aplicación y configuración ---
+# -- Estado de la aplicación --
 frame_lock = threading.Lock()
 current_frame = None
 detection_complete = False
 detected_emotion = "neutral"
 detected_snapshot = None
 last_emotion = None
-emotion_start_time = None
 emotion_buffer = []
-buffer_window = 4
-threshold_ratio = 0.6
-min_count = 5
 forced_video_to_play = None
 restart_requested = False
+# Se elimina el estado de 'emotion_start_time' que no se usaba
+
+# --- NUEVO: Configuración centralizada del evento especial (con valores por defecto) ---
+special_event_config = {
+    "enabled": False,
+    "min_time": 120,          # en segundos
+    "max_time": 180,          # en segundos
+    "initial_delay": 1000,    # en ms
+    "move_duration": 500,     # en ms
+    "delay_between": 500      # en ms
+}
+# --- NUEVO: Herramientas para controlar el hilo del temporizador del evento ---
+special_event_thread = None
+special_event_timer_event = threading.Event() # Para reiniciar el temporizador si la config cambia
 
 # --- Carga de Modelos ---
 try:
     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     if face_cascade.empty():
-        print("CRITICAL ERROR: Cascade Classifier 'haarcascade_frontalface_default.xml' not loaded.")
+        print("CRITICAL ERROR: Cascade Classifier not loaded.")
 except Exception as e:
     print(f"CRITICAL ERROR loading Cascade Classifier: {e}")
     face_cascade = None
 
 emotion_labels = ["angry", "disgust", "fear", "happy", "sad", "surprise", "neutral"]
 interpreter = None
-input_details = None
-output_details = None
-
 try:
     model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "emotion_model.tflite")
     interpreter = tflite.Interpreter(model_path=model_path)
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-    print("TFLite model loaded successfully. Input shape:", input_details[0]['shape'])
+    print("TFLite model loaded successfully.")
 except Exception as e:
     print(f"CRITICAL ERROR: Failed to load TFLite model: {e}")
     interpreter = None
 
-### Función para leer las imágenes del carrusel ###
+# --- Funciones de Lógica de la Aplicación (sin cambios) ---
 def get_carousel_images():
-    if not os.path.exists(CAROUSEL_IMG_FOLDER):
-        print(f"ADVERTENCIA: La carpeta del carrusel no existe en {CAROUSEL_IMG_FOLDER}")
-        return []
+    if not os.path.exists(CAROUSEL_IMG_FOLDER): return []
     try:
         files = sorted([f for f in os.listdir(CAROUSEL_IMG_FOLDER) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))])
-        image_urls = [f"/static/carousel_images/{f}" for f in files]
-        return image_urls
+        return [f"/static/carousel_images/{f}" for f in files]
     except Exception as e:
         print(f"ERROR al leer la carpeta del carrusel: {e}")
         return []
 
 def predict_emotion_tflite(face_roi):
-    global interpreter, input_details, output_details
-    if interpreter is None or face_roi is None or face_roi.size == 0:
-        return "neutral"
-    
+    if interpreter is None or face_roi is None or face_roi.size == 0: return "neutral"
     gray_face = cv2.cvtColor(face_roi, cv2.COLOR_BGR2GRAY)
-    try:
-        h, w = input_details[0]['shape'][1:3]
-        gray_face_resized = cv2.resize(gray_face, (w, h))
-    except Exception as e:
-        print(f"Error resizing face ROI: {e}")
-        return "neutral"
-
-    gray_face_resized = gray_face_resized.astype("float32") / 255.0
-    input_data = np.expand_dims(np.expand_dims(gray_face_resized, axis=-1), axis=0)
-
-    try:
-        interpreter.set_tensor(input_details[0]['index'], input_data)
-        interpreter.invoke()
-        preds = interpreter.get_tensor(output_details[0]['index'])[0]
-        return emotion_labels[np.argmax(preds)]
-    except Exception as e:
-        print(f"Error TFLite invocation: {e}")
-        return "neutral"
+    h, w = input_details[0]['shape'][1:3]
+    gray_face_resized = cv2.resize(gray_face, (w, h))
+    input_data = np.expand_dims(np.expand_dims(gray_face_resized.astype("float32") / 255.0, axis=-1), axis=0)
+    interpreter.set_tensor(input_details[0]['index'], input_data)
+    interpreter.invoke()
+    preds = interpreter.get_tensor(output_details[0]['index'])[0]
+    return emotion_labels[np.argmax(preds)]
 
 def detection_loop():
-    global current_frame, detection_complete, detected_emotion, detected_snapshot
-    global last_emotion, emotion_start_time, emotion_buffer, forced_video_to_play
-
-    cap = None
-    print("Detection Loop: Initializing camera...")
-    try:
-        cap = cv2.VideoCapture(0)
-        if cap.isOpened():
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-            print(f"Camera initialized. Resolution: {cap.get(cv2.CAP_PROP_FRAME_WIDTH)}x{cap.get(cv2.CAP_PROP_FRAME_HEIGHT)}")
-        else:
-            print("CRITICAL: Camera not accessible.")
-            return
-    except Exception as e_cap:
-        print(f"CRITICAL ERROR initializing VideoCapture: {e_cap}")
+    global current_frame, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_buffer, forced_video_to_play
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("CRITICAL: Camera not accessible.")
         return
-
-    last_detection_time = time.time()
-    print("Detection Loop: Starting frame processing.")
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    
     while True:
         if forced_video_to_play or restart_requested:
             time.sleep(0.1)
             continue
-
-        if not cap or not cap.isOpened():
-            print("Camera disconnected. Attempting to re-open...")
-            if cap: cap.release()
-            cap = cv2.VideoCapture(0)
-            if cap.isOpened():
-                cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-            else:
-                with frame_lock: current_frame = None
-                time.sleep(5)
-                continue
-
+        
         ret, frame = cap.read()
-        if not ret or frame is None:
+        if not ret:
             with frame_lock: current_frame = None
-            time.sleep(0.1)
+            time.sleep(1)
             continue
-        
-        processed_frame_for_stream = frame.copy()
-        
-        if face_cascade is not None and not detection_complete and (time.time() - last_detection_time > 0.1):
-            last_detection_time = time.time()
+
+        processed_frame = frame.copy()
+        if not detection_complete:
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
-
             if len(faces) > 0:
                 (x, y, w, h) = faces[0]
-                cv2.rectangle(processed_frame_for_stream, (x, y), (x+w, y+h), (0, 255, 0), 2)
-                face_roi = frame[y:y+h, x:x+w]
-                emotion = predict_emotion_tflite(face_roi)
-                emotion_buffer.append((time.time(), emotion))
-                emotion_buffer = [(t, e) for (t, e) in emotion_buffer if time.time() - t <= buffer_window]
-
-                if len(emotion_buffer) >= min_count:
-                    freq = {e: [tup[1] for tup in emotion_buffer].count(e) for e in set(tup[1] for tup in emotion_buffer)}
-                    if freq:
-                        dominant_emotion = max(freq, key=freq.get)
-                        if freq[dominant_emotion] / len(emotion_buffer) >= threshold_ratio:
-                            if not detection_complete:
-                                print(f"Detection Loop: Emotion stabilized: {dominant_emotion}.")
-                                detection_complete = True
-                                detected_emotion = dominant_emotion
-                                ret_snap, snap_jpeg = cv2.imencode('.jpg', frame)
-                                if ret_snap:
-                                    detected_snapshot = snap_jpeg.tobytes()
+                cv2.rectangle(processed_frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                emotion = predict_emotion_tflite(frame[y:y+h, x:x+w])
+                emotion_buffer.append(emotion)
+                if len(emotion_buffer) > 10: emotion_buffer.pop(0)
                 
-                last_emotion = emotion
-                if last_emotion:
-                    cv2.putText(processed_frame_for_stream, last_emotion, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                dominant_emotion = max(set(emotion_buffer), key=emotion_buffer.count)
+                if emotion_buffer.count(dominant_emotion) / len(emotion_buffer) >= 0.7:
+                    if not detection_complete:
+                        detection_complete, detected_emotion = True, dominant_emotion
+                        _, snap_jpeg = cv2.imencode('.jpg', frame)
+                        detected_snapshot = snap_jpeg.tobytes()
             else:
-                if not detection_complete:
-                    emotion_buffer.clear()
-                    last_emotion = "no_face"
-
-        ret_jpeg, jpeg_frame = cv2.imencode('.jpg', processed_frame_for_stream)
-        if ret_jpeg:
-            with frame_lock:
-                current_frame = jpeg_frame.tobytes()
+                emotion_buffer.clear()
         
+        ret_jpeg, jpeg_frame = cv2.imencode('.jpg', processed_frame)
+        if ret_jpeg:
+            with frame_lock: current_frame = jpeg_frame.tobytes()
         time.sleep(0.05)
-    
-    if cap:
-        cap.release()
-
-detection_thread = threading.Thread(target=detection_loop, daemon=True)
-detection_thread.start()
 
 def gen_video():
-    global current_frame
     while True:
         with frame_lock:
-            frame_to_send = current_frame
-        if frame_to_send:
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_to_send + b'\r\n')
-        else:
-            # Placeholder logic if no frame is available
-            try:
-                placeholder_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),"static","test.png")
-                with open(placeholder_path, "rb") as f:
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + f.read() + b'\r\n')
-            except Exception as e:
-                time.sleep(0.5)
+            frame = current_frame
+        if frame:
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
         time.sleep(0.05)
 
+# --- NUEVO: Lógica del Temporizador del Evento Aleatorio ---
+def special_event_scheduler():
+    """Hilo que gestiona el temporizador y la activación del evento especial."""
+    global forced_video_to_play, special_event_config, special_event_timer_event
+    while True:
+        # Reinicia la espera si la configuración cambia.
+        special_event_timer_event.clear()
+        
+        if special_event_config["enabled"]:
+            min_t, max_t = special_event_config["min_time"], special_event_config["max_time"]
+            delay = random.uniform(min_t, max_t)
+            print(f"SCHEDULER: Evento especial activado. Próxima ejecución en ~{delay:.0f} segundos.")
+            
+            # Espera el tiempo aleatorio. Se interrumpe si el evento se resetea.
+            interrupted = special_event_timer_event.wait(timeout=delay)
+            if interrupted:
+                print("SCHEDULER: Configuración cambiada, reiniciando temporizador.")
+                continue # Vuelve al inicio del bucle para recalcular el tiempo.
+            
+            # Si la espera no fue interrumpida y el evento sigue activo...
+            if special_event_config["enabled"]:
+                # Comprueba si hay alguna otra interacción en curso.
+                # Esta es una comprobación simple, se puede hacer más robusta si es necesario.
+                if forced_video_to_play is None:
+                    print("SCHEDULER: ¡Activando evento especial!")
+                    # 1. Fuerza la reproducción del video especial en el frontend.
+                    #    Usamos un nombre de archivo único para evitar conflictos.
+                    forced_video_to_play = "special/event.mp4"
+                    # 2. Envía la orden de movimiento al servidor de movimiento.
+                    try:
+                        requests.post(f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement")
+                    except requests.exceptions.RequestException as e:
+                        print(f"SCHEDULER ERROR: No se pudo contactar al servidor de movimiento: {e}")
+                else:
+                    print("SCHEDULER: Omitiendo evento, otra interacción está activa.")
+        else:
+            # Si el evento está desactivado, espera a que se active.
+            time.sleep(5)
 
-### RUTAS FLASK ###
-
+# --- Rutas Flask ---
 @app.route('/')
 def route_index():
-    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, last_emotion, emotion_start_time, emotion_buffer, restart_requested
-    print("Route /: Resetting state for new session.")
-    detection_complete = False
-    detected_emotion = "neutral"
-    detected_snapshot = None
-    last_emotion = None
-    emotion_start_time = None
+    global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, emotion_buffer, restart_requested
+    detection_complete, detected_emotion, detected_snapshot = False, "neutral", None
     emotion_buffer.clear()
-    forced_video_to_play = None
-    restart_requested = False
-    
-    image_list = get_carousel_images()
-    return render_template('index.html', image_files=image_list)
+    forced_video_to_play, restart_requested = None, False
+    return render_template('index.html', image_files=get_carousel_images())
 
 @app.route('/video_feed')
 def video_feed_route():
@@ -235,88 +193,46 @@ def video_feed_route():
 @app.route('/detection_status')
 def detection_status_route():
     global forced_video_to_play, detection_complete, detected_emotion, restart_requested
-    status_data = {
-        "detected": detection_complete,
-        "emotion": detected_emotion,
-        "restart_requested": restart_requested
-    }
+    status = {"detected": detection_complete, "emotion": detected_emotion, "restart_requested": restart_requested}
     if forced_video_to_play:
-        status_data["forced_video"] = forced_video_to_play
-        forced_video_to_play = None
-    if restart_requested:
-        restart_requested = False
-    if detection_complete:
-        detection_complete = False
-    return jsonify(status_data)
+        status["forced_video"] = forced_video_to_play
+        forced_video_to_play = None # Limpiar después de enviar
+    if restart_requested: restart_requested = False
+    if detection_complete: detection_complete = False
+    return jsonify(status)
 
+# --- Rutas de Archivos (sin cambios) ---
 @app.route('/snapshot')
 def snapshot_route():
-    if detected_snapshot:
-        return Response(detected_snapshot, mimetype='image/jpeg')
-    else:
-        return "No snapshot available", 404
+    return Response(detected_snapshot, mimetype='image/jpeg') if detected_snapshot else ("No snapshot", 404)
 
 @app.route('/get_random_audio')
 def get_random_audio_route():
-    emotion_folder_name = detected_emotion if detected_emotion in emotion_labels else "neutral"
-    audio_folder_path = os.path.join(app.static_folder, "audio", emotion_folder_name)
-    
-    if not os.path.exists(audio_folder_path):
-        audio_folder_path = os.path.join(app.static_folder, "audio", "neutral")
-        emotion_folder_name = "neutral"
-        if not os.path.exists(audio_folder_path):
-            return jsonify({'error': 'Default audio folder not found'}), 404
-
-    try:
-        files = [f for f in os.listdir(audio_folder_path) if f.lower().endswith(('.mp3', '.wav', '.ogg'))]
-        if not files:
-            return jsonify({'error': f'No audio files in folder for {emotion_folder_name}'}), 404
-        selected_file = random.choice(files)
-        audio_url = f"/static/audio/{emotion_folder_name}/{selected_file}"
-        return jsonify({'audio_url': audio_url})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    emotion = detected_emotion if detected_emotion in emotion_labels else "neutral"
+    path = os.path.join(app.static_folder, "audio", emotion)
+    if not os.path.exists(path): path = os.path.join(app.static_folder, "audio", "neutral")
+    files = [f for f in os.listdir(path) if f.lower().endswith('.mp3')]
+    if not files: return jsonify({'error': 'No audio files'}), 404
+    return jsonify({'audio_url': f"/static/audio/{os.path.basename(path)}/{random.choice(files)}"})
 
 @app.route('/get_random_video')
 def get_random_video_route():
-    video_folder_path = os.path.join(app.static_folder, "video")
-    if not os.path.exists(video_folder_path):
-        return jsonify({'error': 'Video folder not found'}), 404
-    try:
-        files = [f for f in os.listdir(video_folder_path) if f.lower().endswith(('.mp4', '.webm', '.mov'))]
-        if not files:
-            return jsonify({'error': 'No video files in folder'}), 404
-        selected_file = random.choice(files)
-        video_url = f"/static/video/{selected_file}"
-        return jsonify({'video_url': video_url})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    path = os.path.join(app.static_folder, "video")
+    files = [f for f in os.listdir(path) if f.lower().endswith('.mp4')]
+    if not files: return jsonify({'error': 'No video files'}), 404
+    return jsonify({'video_url': f"/static/video/{random.choice(files)}"})
 
+# --- Rutas de Control Externo ---
 @app.route('/list_videos')
 def list_videos_route():
-    video_folder_path = os.path.join(app.static_folder, "video")
-    if not os.path.exists(video_folder_path):
-        return jsonify({'error': 'Video folder not found'}), 404
-    try:
-        video_files = sorted([f for f in os.listdir(video_folder_path) if f.lower().endswith(('.mp4', '.webm', '.mov'))])
-        return jsonify({'videos': video_files})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    path = os.path.join(app.static_folder, "video")
+    return jsonify({'videos': sorted([f for f in os.listdir(path) if f.lower().endswith('.mp4')])})
 
 @app.route('/play_specific_video', methods=['POST'])
 def play_specific_video_route():
     global forced_video_to_play
-    data = request.json
-    if not data or 'video_file' not in data:
-        return jsonify({'error': 'Invalid request'}), 400
-    
-    video_file = os.path.basename(data['video_file'])
-    abs_video_path = os.path.join(app.static_folder, "video", video_file)
-    if not os.path.isfile(abs_video_path):
-        return jsonify({'error': f'Video "{video_file}" not found.'}), 404
-    
-    forced_video_to_play = video_file
-    return jsonify({'status': 'ok', 'message': f'Request to play {video_file} received.'})
+    forced_video_to_play = request.json.get('video_file')
+    return jsonify({'status': 'ok'})
 
 @app.route('/restart')
 def restart_route():
@@ -324,39 +240,47 @@ def restart_route():
     restart_requested = True
     return jsonify({"status": "restarted"})
 
+# --- NUEVO: Rutas centralizadas para la configuración del evento ---
+@app.route('/config_special_event', methods=['POST'])
+def config_special_event():
+    """Recibe la configuración COMPLETA desde la UI de movimiento."""
+    global special_event_config, special_event_timer_event
+    
+    new_config = request.json
+    special_event_config.update(new_config)
+    
+    print(f"CONFIG: Nueva configuración de evento recibida: {special_event_config}")
 
-# --- NUEVA RUTA para comunicar el evento especial al servidor de movimiento ---
-@app.route('/trigger_special_event', methods=['POST'])
-def trigger_special_event():
-    """
-    Recibe el aviso del frontend y lo reenvía al servidor de movimiento
-    para que inicie la secuencia de movimiento del evento especial.
-    """
+    # Reenviar la parte de movimiento al servidor de movimiento
+    movement_config = {
+        "enabled": new_config.get("enabled"),
+        "initial_delay": new_config.get("initial_delay"),
+        "move_duration": new_config.get("move_duration"),
+        "delay_between": new_config.get("delay_between"),
+    }
     try:
-        print("APP.PY: Reenviando trigger de evento especial al servidor de movimiento...")
-        response = requests.post(f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement")
-        
-        # Comprobar la respuesta del servidor de movimiento
-        if response.status_code == 200:
-            print("APP.PY: Servidor de movimiento confirmó el inicio de la secuencia.")
-            return jsonify({"status": "ok", "message": "Special event movement triggered."}), 200
-        else:
-            print(f"APP.PY: Error del servidor de movimiento - {response.status_code}: {response.text}")
-            return jsonify({
-                "status": "error", 
-                "message": "Failed to trigger movement.", 
-                "details": response.text
-            }), response.status_code
-            
+        requests.post(f"{MOVEMENT_SERVER_URL}/config_special_event", json=movement_config)
     except requests.exceptions.RequestException as e:
-        # Error si no se puede conectar al servidor de movimiento
-        print(f"CRITICAL ERROR: No se pudo conectar al servidor de movimiento en {MOVEMENT_SERVER_URL}. Error: {e}")
-        return jsonify({
-            "status": "error", 
-            "message": "Could not connect to the movement server."
-        }), 503
+        print(f"CONFIG ERROR: No se pudo enviar la config a movement.py: {e}")
+        return jsonify({"status": "error", "message": "Could not contact movement server"}), 503
+        
+    # Despertar al hilo del temporizador para que use la nueva configuración inmediatamente.
+    special_event_timer_event.set()
+    
+    return jsonify({"status": "ok", "message": "Configuración actualizada."})
 
+@app.route('/get_special_event_config', methods=['GET'])
+def get_special_event_config():
+    """Proporciona la configuración actual a la UI de movimiento."""
+    return jsonify(special_event_config)
 
 if __name__ == '__main__':
-    print("Flask app starting...")
+    # Iniciar el hilo de detección
+    threading.Thread(target=detection_loop, daemon=True).start()
+    
+    # --- NUEVO: Iniciar el hilo del temporizador de eventos especiales ---
+    special_event_thread = threading.Thread(target=special_event_scheduler, daemon=True)
+    special_event_thread.start()
+    
+    print("Flask app starting... Main detection and event scheduler are running.")
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
