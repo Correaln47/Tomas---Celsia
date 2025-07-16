@@ -12,9 +12,27 @@
         .file-list li { margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; border-bottom: 1px dotted #eee; background-color: #f9f9f9; border-radius: 4px;}
         .file-list li:nth-child(odd) { background-color: #fff; }
         .file-list span { flex-grow: 1; margin-right: 10px; word-break: break-all; }
-        .file-list form { display: inline; margin-left: 10px; }
-        .file-list button { background-color: #f44336; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: background-color 0.2s; }
+        .file-list form { display: inline-block; margin-left: 5px; vertical-align: middle; }
+        
+        /* ### NUEVO: Contenedor para botones ### */
+        .file-actions { display: flex; align-items: center; }
+
+        .file-list button { background-color: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em; transition: background-color 0.2s; }
         .file-list button:hover { background-color: #da190b; }
+        
+        /* ### NUEVO: Estilos para el botón de descarga ### */
+        .download-button {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+        .download-button:hover { background-color: #0056b3; }
+
         .flash { padding: 12px; margin-bottom: 15px; border-radius: 5px; font-weight: bold; }
         .flash.success { background-color: #d4edda; color: #155724; }
         .flash.error { background-color: #f8d7da; color: #721c24; }
@@ -29,6 +47,8 @@
         .upload-status-text { margin-top: 10px; font-size: 0.9em; color: #555; text-align: center; }
         .recommendation-box { margin-top: 20px; padding: 15px; border: 1px solid #a2c6ff; border-radius: 5px; background-color: #e9f4ff; color: #0056b3; font-size: 0.9em; line-height: 1.5; }
         .recommendation-box strong { color: #003366; }
+        .recommendation-box code { background-color: #d1eaff; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
+        .warning-box { border-color: #ffb74d; background-color: #fff3e0; color: #e65100; } /* ### NUEVO ### */
     </style>
 </head>
 <body>
@@ -43,7 +63,22 @@
     {% endwith %}
 
     <div class="upload-section">
-        <h2>Subir Nuevo Video</h2>
+        <h2>Cambiar Video de Evento Especial</h2>
+        <form id="uploadSpecialEventForm" method="post" enctype="multipart/form-data" action="{{ url_for('upload_file') }}">
+            <input type="file" name="special_event" accept="video/mp4" required>
+            <input type="submit" value="Actualizar Evento">
+        </form>
+        <div class="upload-progress-container" id="special_eventProgressContainer">
+            <div class="upload-progress-bar" id="special_eventProgressBar">0%</div>
+        </div>
+        <div class="upload-status-text" id="special_eventStatusText"></div>
+        <div class="recommendation-box warning-box">
+            <strong>Importante:</strong> Solo puede existir <strong>un único video</strong> para el evento especial. Al subir un nuevo archivo, este <strong>reemplazará al anterior</strong> y será renombrado a <code>event.mp4</code>.
+        </div>
+    </div>
+    
+    <div class="upload-section">
+        <h2>Subir Nuevo Video General</h2>
         <form id="uploadVideoForm" method="post" enctype="multipart/form-data" action="{{ url_for('upload_file') }}">
           <input type="file" name="video" accept="video/*" required>
           <input type="submit" value="Subir Video">
@@ -98,16 +133,39 @@
 
     <div>
         <h2>Archivos Actuales:</h2>
+
         <div>
-            <h3>Videos (en static/video):</h3>
+            <h3>Video de Evento Especial (en static/special):</h3>
+            {% if special_event_file %}
+                <ul class="file-list">
+                    <li>
+                        <span>{{ special_event_file }}</span>
+                        <div class="file-actions">
+                             <a href="{{ url_for('download_file', type='special_event', subpath='_', filename=special_event_file) }}" class="download-button">Descargar</a>
+                            <form method="post" action="{{ url_for('delete_file', type='special_event', subpath='_', filename=special_event_file) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este archivo?');">
+                                <button type="submit">Eliminar</button>
+                            </form>
+                        </div>
+                    </li>
+                </ul>
+            {% else %}
+                <p>No se ha subido un video para el evento especial.</p>
+            {% endif %}
+        </div>
+
+        <div>
+            <h3>Videos Generales (en static/video):</h3>
             {% if videos %}
                 <ul class="file-list">
                 {% for filename in videos %}
                     <li>
                         <span>{{ filename }}</span>
-                        <form method="post" action="{{ url_for('delete_file', type='video', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este video?');">
-                            <button type="submit">Eliminar</button>
-                        </form>
+                        <div class="file-actions">
+                            <a href="{{ url_for('download_file', type='video', subpath='_', filename=filename) }}" class="download-button">Descargar</a>
+                            <form method="post" action="{{ url_for('delete_file', type='video', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este video?');">
+                                <button type="submit">Eliminar</button>
+                            </form>
+                        </div>
                     </li>
                 {% endfor %}
                 </ul>
@@ -126,9 +184,12 @@
                         {% for filename in files %}
                             <li>
                                 <span>{{ filename }}</span>
-                                <form method="post" action="{{ url_for('delete_file', type='audio', subpath=emotion, filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este audio de la carpeta {{ emotion }}?');">
-                                    <button type="submit">Eliminar</button>
-                                </form>
+                                <div class="file-actions">
+                                    <a href="{{ url_for('download_file', type='audio', subpath=emotion, filename=filename) }}" class="download-button">Descargar</a>
+                                    <form method="post" action="{{ url_for('delete_file', type='audio', subpath=emotion, filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este audio de la carpeta {{ emotion }}?');">
+                                        <button type="submit">Eliminar</button>
+                                    </form>
+                                </div>
                             </li>
                         {% endfor %}
                         </ul>
@@ -146,9 +207,12 @@
                 {% for filename in carousel_images %}
                     <li>
                         <span>{{ filename }}</span>
-                        <form method="post" action="{{ url_for('delete_file', type='carousel_image', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta imagen?');">
-                            <button type="submit">Eliminar</button>
-                        </form>
+                        <div class="file-actions">
+                            <a href="{{ url_for('download_file', type='carousel_image', subpath='_', filename=filename) }}" class="download-button">Descargar</a>
+                            <form method="post" action="{{ url_for('delete_file', type='carousel_image', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar esta imagen?');">
+                                <button type="submit">Eliminar</button>
+                            </form>
+                        </div>
                     </li>
                 {% endfor %}
                 </ul>
@@ -159,6 +223,8 @@
     </div>
 
      <script>
+         // ### MODIFICADO: Añadido event listener para el nuevo formulario ###
+         document.getElementById('uploadSpecialEventForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'special_event'));
          document.getElementById('uploadVideoForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'video'));
          document.getElementById('uploadAudioForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'audio'));
          document.getElementById('uploadCarouselForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'carousel_image'));
@@ -194,11 +260,15 @@
              });
              xhr.addEventListener('load', () => {
                  submitButton.disabled = false;
-                 progressContainer.style.display = 'none';
+                 // Ocultar la barra después de un tiempo para que el usuario vea el 100%
+                 setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                 }, 1000);
+
                  try {
                      const response = JSON.parse(xhr.responseText);
                      if (xhr.status >= 200 && xhr.status < 300) {
-                         statusText.innerText = `¡Éxito! Recargando...`;
+                         statusText.innerText = `¡Éxito! ${response.message || ''} Recargando...`;
                          statusText.style.color = '#28a745';
                          setTimeout(() => window.location.reload(), 1500);
                      } else {
