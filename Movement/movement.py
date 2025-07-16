@@ -3,8 +3,8 @@ from gpiozero import LED
 from gpiozero.pins.pigpio import PiGPIOFactory
 import time
 import threading
-import subprocess  # NUEVO: Necesario para ejecutar comandos del sistema
-import re          # NUEVO: Necesario para analizar la salida del comando de volumen
+import subprocess
+import re
 
 factory = PiGPIOFactory()
 app = Flask(__name__)
@@ -20,7 +20,7 @@ motorA_rev = LED(REV_A, pin_factory=factory)
 motorB_fwd = LED(FWD_B, pin_factory=factory)
 motorB_rev = LED(REV_B, pin_factory=factory)
 
-# --- Configuración del evento especial ---
+# --- Configuración del evento especial (Ahora solo son valores por defecto/fallback) ---
 special_event_config = {
     "enabled": False,
     "initial_delay": 1000,
@@ -28,7 +28,7 @@ special_event_config = {
     "delay_between": 500
 }
 
-# --- NUEVO: Funciones para el Control de Volumen ---
+# --- Funciones para el Control de Volumen ---
 
 def get_system_volume():
     """
@@ -36,14 +36,12 @@ def get_system_volume():
     Devuelve: El nivel de volumen (0-100) o None si hay un error.
     """
     try:
-        # Ejecuta el comando para obtener la información del control de volumen 'Master'
         result = subprocess.run(
             ["amixer", "sget", "Master"],
             capture_output=True,
             text=True,
             check=True
         )
-        # Busca el porcentaje de volumen en la salida usando una expresión regular
         match = re.search(r"\[(\d{1,3})%\]", result.stdout)
         if match:
             return int(match.group(1))
@@ -62,7 +60,6 @@ def set_system_volume(volume):
         print(f"ERROR: El volumen debe estar entre 0 y 100. Se recibió: {volume}")
         return False
     try:
-        # Ejecuta el comando para establecer el volumen
         subprocess.run(
             ["amixer", "-M", "sset", "Master", f"{volume}%"],
             check=True,
@@ -74,7 +71,7 @@ def set_system_volume(volume):
         print(f"ERROR al establecer el volumen del sistema: {e}")
         return False
 
-# --- Funciones de Control de Movimiento (sin cambios) ---
+# --- Funciones de Control de Movimiento ---
 
 def stop_all():
     motorA_fwd.off()
@@ -111,12 +108,14 @@ def move_forward():
     motorB_fwd.on()
     print("Girando a la DERECHA")
 
-# --- Lógica de la secuencia de movimiento del evento (sin cambios) ---
-def run_special_event_movement():
-    print("--- INICIANDO SECUENCIA DE MOVIMIENTO ESPECIAL ---")
-    initial_delay_s = special_event_config["initial_delay"] / 1000.0
-    move_duration_s = special_event_config["move_duration"] / 1000.0
-    delay_between_s = special_event_config["delay_between"] / 1000.0
+# --- ### CAMBIO 1: La función ahora recibe la configuración como parámetro ### ---
+def run_special_event_movement(config):
+    print(f"--- INICIANDO SECUENCIA DE MOVIMIENTO ESPECIAL CON CONFIG: {config} ---")
+    
+    # Usa la configuración recibida, no la global
+    initial_delay_s = config["initial_delay"] / 1000.0
+    move_duration_s = config["move_duration"] / 1000.0
+    delay_between_s = config["delay_between"] / 1000.0
     
     time.sleep(initial_delay_s)
     
@@ -133,6 +132,7 @@ def run_special_event_movement():
         stop_all()
         if i < len(moves) - 1:
             time.sleep(delay_between_s)
+            
     print("--- FIN DE SECUENCIA DE MOVIMIENTO ESPECIAL ---")
 
 # --- Rutas Flask ---
@@ -141,7 +141,7 @@ def run_special_event_movement():
 def index():
     return render_template("index.html")
 
-# --- NUEVO: Rutas para el Control de Volumen ---
+# --- Rutas para el Control de Volumen ---
 @app.route("/get_volume", methods=["GET"])
 def get_volume_route():
     volume = get_system_volume()
@@ -162,7 +162,7 @@ def set_volume_route():
     else:
         return jsonify({"status": "error", "message": "No se pudo establecer el volumen."}), 500
 
-# --- Rutas de Control de Movimiento y Eventos (sin cambios) ---
+# --- Rutas de Control de Movimiento y Eventos ---
 @app.route("/control", methods=["POST"])
 def control():
     data = request.json
@@ -190,14 +190,24 @@ def config_special_event():
     global special_event_config
     data = request.json
     special_event_config.update(data)
-    print(f"Configuración de movimiento actualizada por app.py: {special_event_config}")
+    print(f"Configuración de movimiento PREDETERMINADA actualizada por app.py: {special_event_config}")
     return jsonify({"status": "ok", "message": "Configuración de movimiento guardada."})
 
+# --- ### CAMBIO 2: La ruta ahora lee la configuración de la petición ### ---
 @app.route("/trigger_special_event_movement", methods=["POST"])
 def trigger_special_event_movement():
-    thread = threading.Thread(target=run_special_event_movement)
+    # Obtiene la configuración enviada desde app.py. Si no se envía nada, usa los valores por defecto.
+    data = request.json or {}
+    current_config = {
+        "initial_delay": data.get("initial_delay", special_event_config["initial_delay"]),
+        "move_duration": data.get("move_duration", special_event_config["move_duration"]),
+        "delay_between": data.get("delay_between", special_event_config["delay_between"])
+    }
+    
+    # Pasa la configuración recibida a la función de movimiento
+    thread = threading.Thread(target=run_special_event_movement, args=(current_config,))
     thread.start()
-    return jsonify({"status": "ok", "message": "Secuencia de movimiento especial iniciada."})
+    return jsonify({"status": "ok", "message": "Secuencia de movimiento especial iniciada con config específica."})
 
 # --- Inicio de la Aplicación ---
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ CORS(app)
 MOVEMENT_SERVER_URL = "http://localhost:5001"
 CAROUSEL_IMG_FOLDER = os.path.join(os.path.dirname(__file__), 'static', 'carousel_images')
 
-# --- NUEVO: Configuración de la Detección de Emociones ---
+# --- Configuración de la Detección de Emociones ---
 EMOTION_CONFIRMATION_TIME = 1.5  # Segundos que una emoción debe ser detectada consistentemente para ser válida.
 
 # -- Estado de la aplicación --
@@ -29,7 +29,7 @@ detected_snapshot = None
 forced_video_to_play = None
 restart_requested = False
 
-# --- NUEVO: Estado para el proceso de confirmación de emoción ---
+# --- Estado para el proceso de confirmación de emoción ---
 confirming_emotion = None
 emotion_confirmation_start_time = None
 
@@ -38,7 +38,7 @@ special_event_config = {
     "enabled": False,
     "min_time": 120,
     "max_time": 180,
-    "initial_delay": 19000,
+    "initial_delay": 22000, # Este es el valor que cambiaste
     "move_duration": 500,
     "delay_between": 500
 }
@@ -115,7 +115,6 @@ def detection_loop():
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
             
-            # --- LÓGICA DE DETECCIÓN MODIFICADA CON TEMPORIZADOR ---
             if len(faces) > 0:
                 (x, y, w, h) = faces[0]
                 cv2.rectangle(processed_frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
@@ -123,7 +122,6 @@ def detection_loop():
                 current_emotion_reading = predict_emotion_tflite(frame[y:y+h, x:x+w])
 
                 if current_emotion_reading == confirming_emotion:
-                    # La emoción sigue siendo la misma, comprobar si ha pasado suficiente tiempo
                     if time.time() - emotion_confirmation_start_time >= EMOTION_CONFIRMATION_TIME:
                         print(f"DETECTION: Emotion '{confirming_emotion}' confirmed for {EMOTION_CONFIRMATION_TIME}s.")
                         detection_complete = True
@@ -133,12 +131,10 @@ def detection_loop():
                         confirming_emotion = None
                         emotion_confirmation_start_time = None
                 else:
-                    # La emoción ha cambiado, empezar a confirmar la nueva
                     print(f"DETECTION: New candidate emotion: '{current_emotion_reading}'. Starting timer...")
                     confirming_emotion = current_emotion_reading
                     emotion_confirmation_start_time = time.time()
             else:
-                # No se detecta ninguna cara, reiniciar el estado de confirmación
                 if confirming_emotion is not None:
                     print("DETECTION: Face lost. Resetting confirmation state.")
                 confirming_emotion = None
@@ -176,7 +172,17 @@ def special_event_scheduler():
                 print("SCHEDULER: Triggering special event!")
                 forced_video_to_play = "special/event.mp4"
                 try:
-                    requests.post(f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement")
+                    # ### CAMBIO 1 ###
+                    # Ahora se envía la configuración de movimiento al servidor de movimiento.
+                    event_movement_params = {
+                        "initial_delay": special_event_config.get("initial_delay"),
+                        "move_duration": special_event_config.get("move_duration"),
+                        "delay_between": special_event_config.get("delay_between")
+                    }
+                    requests.post(
+                        f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement",
+                        json=event_movement_params
+                    )
                 except requests.exceptions.RequestException as e:
                     print(f"SCHEDULER ERROR: Could not contact movement server: {e}")
             elif forced_video_to_play is not None:
@@ -257,7 +263,17 @@ def trigger_special_event_manually_route():
     print("MANUAL TRIGGER: ¡Activando evento especial manualmente!")
     forced_video_to_play = "special/event.mp4"
     try:
-        requests.post(f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement")
+        # ### CAMBIO 2 ###
+        # También se envía la configuración al activar el evento manualmente.
+        event_movement_params = {
+            "initial_delay": special_event_config.get("initial_delay"),
+            "move_duration": special_event_config.get("move_duration"),
+            "delay_between": special_event_config.get("delay_between")
+        }
+        requests.post(
+            f"{MOVEMENT_SERVER_URL}/trigger_special_event_movement",
+            json=event_movement_params
+        )
     except requests.exceptions.RequestException as e:
         print(f"MANUAL TRIGGER ERROR: No se pudo contactar al servidor de movimiento: {e}")
         return jsonify({"status": "warning", "message": "Video triggered, but could not contact movement server."}), 503
@@ -269,18 +285,9 @@ def config_special_event():
     new_config = request.json
     special_event_config.update(new_config)
     print(f"CONFIG: Nueva configuración de evento recibida: {special_event_config}")
-    movement_config = {
-        "enabled": new_config.get("enabled"),
-        "initial_delay": new_config.get("initial_delay"),
-        "move_duration": new_config.get("move_duration"),
-        "delay_between": new_config.get("delay_between"),
-    }
-    try:
-        requests.post(f"{MOVEMENT_SERVER_URL}/config_special_event", json=movement_config)
-    except requests.exceptions.RequestException as e:
-        print(f"CONFIG ERROR: No se pudo enviar la config a movement.py: {e}")
-        return jsonify({"status": "error", "message": "Could not contact movement server"}), 503
-    special_event_timer_event.set()
+    # No es necesario enviar la configuración al servidor de movimiento aquí,
+    # ya que se enviará en el momento de la activación del evento.
+    special_event_timer_event.set() # Reinicia el temporizador del evento con la nueva config.
     return jsonify({"status": "ok", "message": "Configuración actualizada."})
 
 @app.route('/get_special_event_config', methods=['GET'])
