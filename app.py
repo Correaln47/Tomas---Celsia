@@ -303,7 +303,7 @@ def get_predete_emotion_route():
     return jsonify({"emotion": predete_emotion})
 
 @app.route('/set_predete_emotion', methods=["POST"])
-def get_predete_emotion_route():
+def set_predete_emotion_route():
     global predete_emotion
     predete_emotion = request.args.get("emotion")
     
