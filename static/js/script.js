@@ -354,12 +354,8 @@ document.addEventListener("DOMContentLoaded", function() {
     // 2. Ajustar la resolución si cambia el tamaño de la ventana (ej. rotar tablet).
     window.addEventListener('resize', resizeCanvasAndRedraw);
     // 3. Iniciar el bucle de animación.
-    animateFace();
+    // animateFace();
     // 4. Iniciar el sondeo del estado del servidor.
     setInterval(pollDetectionStatus, 500);
-
-    setInterval(()=>{
-        drawStaticEmotionFace(ctx, 'sad')
-    },1000)
     
 });
