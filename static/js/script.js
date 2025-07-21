@@ -44,7 +44,9 @@ document.addEventListener("DOMContentLoaded", function() {
             drawStaticEmotionFace(ctx, currentEmotion);
         } else if (!isAudioPlaying) {
             // Si no está sonando nada, dibuja la cara "neutra" animada.
-            drawAnimatedFace(0); 
+            // drawAnimatedFace(0); 
+            drawStaticEmotionFace(ctx, currentEmotion);
+
         }
         // Si el audio está sonando, el bucle 'animateFace' se encargará de redibujar.
     }
@@ -354,7 +356,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // 2. Ajustar la resolución si cambia el tamaño de la ventana (ej. rotar tablet).
     window.addEventListener('resize', resizeCanvasAndRedraw);
     // 3. Iniciar el bucle de animación.
-    // animateFace();
+    animateFace();
     // 4. Iniciar el sondeo del estado del servidor.
     setInterval(pollDetectionStatus, 500);
     
