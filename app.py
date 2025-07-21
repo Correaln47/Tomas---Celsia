@@ -297,12 +297,12 @@ def get_special_event_config():
 
 
 # --------------------- Cambio de cara predeterminada ---------
-@app.route('/get_predete_emotion')
+@app.route('/get_predete_emotion', methods=['GET'])
 def get_predete_emotion_route():
     global predete_emotion
     return jsonify({"emotion": predete_emotion})
 
-@app.route('/set_predete_emotion')
+@app.route('/set_predete_emotion', methods=["POST"])
 def get_predete_emotion_route():
     global predete_emotion
     predete_emotion = request.args.get("emotion")
