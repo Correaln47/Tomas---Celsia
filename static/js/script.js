@@ -248,8 +248,8 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Lógica Principal de Interacción (Sin cambios) ---
     function pollDetectionStatus() {
 
-        fetch('/get_predete_emotion').then((res)=>{
-            console.log(res.json())
+        fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data)=>{
+            console.log(data)
         })
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {
