@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Variables de Estado ---
     let currentEmotion = "sad";
     let isAudioPlaying = false;
-    let isShowingStaticEmotion = false;
+    let isShowingStaticEmotion = true;
     let currentForcedVideoProcessed = null;
     let audioContext = null;
     let audioAnalyser = null;
@@ -44,9 +44,8 @@ document.addEventListener("DOMContentLoaded", function() {
             drawStaticEmotionFace(ctx, currentEmotion);
         } else if (!isAudioPlaying) {
             // Si no está sonando nada, dibuja la cara "neutra" animada.
-            // drawAnimatedFace(0); 
-            drawStaticEmotionFace(ctx, currentEmotion);
-
+            drawAnimatedFace(0); 
+            
         }
         // Si el audio está sonando, el bucle 'animateFace' se encargará de redibujar.
     }
