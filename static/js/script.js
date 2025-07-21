@@ -61,6 +61,8 @@ document.addEventListener("DOMContentLoaded", function() {
     
     // --- Función para dibujar la cara estática de la emoción (Sin cambios) ---
     function drawStaticEmotionFace(ctx, emotion) {
+
+        emotion = "sad"
         const cw = ctx.canvas.width;
         const ch = ctx.canvas.height;
 
