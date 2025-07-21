@@ -357,5 +357,9 @@ document.addEventListener("DOMContentLoaded", function() {
     animateFace();
     // 4. Iniciar el sondeo del estado del servidor.
     setInterval(pollDetectionStatus, 500);
+
+    setInterval(()=>{
+        drawStaticEmotionFace(ctx, 'sad')
+    },1000)
     
 });
