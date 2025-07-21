@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const ctx = faceCanvas.getContext('2d');
 
     // --- Variables de Estado ---
-    let currentEmotion = "happy";
+    let currentEmotion = "sad";
     let isAudioPlaying = false;
     let isShowingStaticEmotion = false;
     let currentForcedVideoProcessed = null;
@@ -355,5 +355,5 @@ document.addEventListener("DOMContentLoaded", function() {
     animateFace();
     // 4. Iniciar el sondeo del estado del servidor.
     setInterval(pollDetectionStatus, 500);
-
+    
 });
