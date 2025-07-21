@@ -310,8 +310,8 @@
         <div class="controls-section">
             <h3>Control cara predeterminada</h3>
             <div>
-                <label for="video-select">Seleccionar Video:</label>
-                <select id="video-select" name="video-select">
+                <label for="emotion-select">Seleccionar Video:</label>
+                <select id="emotion-select" name="emotion-select">
                     <option value="neutral">Neutral</option>
                     <option value="angry" >Enojo</option>
                     <option value="disgust">Disgusto</option>
@@ -335,6 +335,8 @@
             stop: document.getElementById('button-stop')
         };
         const videoSelect = document.getElementById('video-select');
+        const emotionSelect = document.getElementById('emotion-select');
+
         const playVideoButton = document.getElementById('button-play-video');
         const skipVideoButton = document.getElementById('button-skip-video');
         
@@ -352,6 +354,12 @@
 
         const mainAppUrl = `http://${window.location.hostname}:5000`;
         const movementAppUrl = `http://${window.location.hostname}:5001`;
+
+        selectElement.addEventListener('change', function(event) {
+            const selectedValue = event.target.value;
+            console.log('Selected value:', selectedValue);
+            });
+
 
         // --- Funciones de Comunicación ---
 
