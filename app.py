@@ -196,7 +196,7 @@ def route_index():
     global forced_video_to_play, detection_complete, detected_emotion, detected_snapshot, restart_requested
     global confirming_emotion, emotion_confirmation_start_time
     
-    detection_complete, detected_emotion, detected_snapshot = False, "neutral", None
+    detection_complete, detected_emotion, detected_snapshot = False, "happy", None
     forced_video_to_play, restart_requested = None, False
     confirming_emotion, emotion_confirmation_start_time = None, None
     

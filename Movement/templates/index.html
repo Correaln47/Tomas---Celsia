@@ -258,7 +258,13 @@
             <div>
                 <label for="video-select">Seleccionar Video:</label>
                 <select id="video-select" name="video-select">
-                    <option value="">Cargando videos...</option>
+                    <option value="neutral">Neutral</option>
+                    <option value="angry" >Enojo</option>
+                    <option value="disgust">Disgusto</option>
+                    <option value="fear">Miedo</option>
+                    <option value="happy">Feliz</option>
+                    <option value="sad">Triste</option>
+                    <option value="surprise">Sorprendido</option>
                 </select>
             </div>
             <button id="button-play-video">▶️ Iniciar Video Seleccionado</button>
@@ -306,6 +312,18 @@
                 <input type="number" id="delay-between" value="500" min="0" step="100">
             </div>
         </div>
+
+        <div class="controls-section">
+            <h3>Control cara predeterminada</h3>
+            <div>
+                <label for="video-select">Seleccionar cara:</label>
+                <select id="video-select" name="video-select">
+                    <option value="">Cargando videos...</option>
+                </select>
+
+            </div>
+        </div>
+
     </div>
 
     <script>
