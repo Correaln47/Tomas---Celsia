@@ -357,7 +357,7 @@
 
         emotionSelect.addEventListener('change', function(event) {
             const selectedValue = event.target.value;
-            console.log('Selected value:', selectedValue);
+            fetch(`http://localhost:5000/set_predete_emotion?emotion=${selectedValue}`)
             });
 
 
