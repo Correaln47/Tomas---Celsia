@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Variables de Estado ---
     let currentEmotion = "sad";
     let isAudioPlaying = false;
-    let isShowingStaticEmotion = true;
+    let isShowingStaticEmotion = false;
     let currentForcedVideoProcessed = null;
     let audioContext = null;
     let audioAnalyser = null;
