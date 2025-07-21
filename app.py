@@ -24,7 +24,8 @@ EMOTION_CONFIRMATION_TIME = 1.5  # Segundos que una emoción debe ser detectada 
 frame_lock = threading.Lock()
 current_frame = None
 detection_complete = False
-detected_emotion = "sad"
+detected_emotion = "neutral"
+predete_emotion = "neutral"
 detected_snapshot = None
 forced_video_to_play = None
 restart_requested = False
@@ -293,6 +294,22 @@ def config_special_event():
 @app.route('/get_special_event_config', methods=['GET'])
 def get_special_event_config():
     return jsonify(special_event_config)
+
+
+# --------------------- Cambio de cara predeterminada ---------
+@app.route('/get_predete_emotion')
+def get_predete_emotion_route():
+    global predete_emotion
+    return jsonify({"emotion": predete_emotion})
+
+@app.route('/set_predete_emotion')
+def get_predete_emotion_route():
+    global predete_emotion
+    predete_emotion = request.args.get("emotion")
+    
+    return jsonify({"Succes": 500})
+
+
 
 if __name__ == '__main__':
     threading.Thread(target=detection_loop, daemon=True).start()

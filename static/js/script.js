@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const ctx = faceCanvas.getContext('2d');
 
     // --- Variables de Estado ---
-    let currentEmotion = "sad";
+    let currentEmotion = "neutral";
     let isAudioPlaying = false;
     let isShowingStaticEmotion = false;
     let currentForcedVideoProcessed = null;
@@ -247,6 +247,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // --- Lógica Principal de Interacción (Sin cambios) ---
     function pollDetectionStatus() {
+
+        fetch('/get_predete_emotion').then((res)=>{
+            console.log(res.json())
+        })
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {
             if (data.restart_requested) {
@@ -268,6 +272,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             }
         }).catch(err => console.error("Polling error:", err));
+
+
     }
 
     function handleEmotionDetection(emotion) {
