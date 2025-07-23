@@ -249,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function pollDetectionStatus() {
 
         fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data)=>{
-            console.log(`Predetermined emotion: ${data.emotion}`);
+            // console.log(`Predetermined emotion: ${data.emotion}`);
             if (data.emotion !== "neutral") {
                 isShowingStaticEmotion = true;
                 drawStaticEmotionFace(ctx, data.emotion);
@@ -261,6 +261,12 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
         })
+
+        fetch('/get_video_loop_state').then(res => res.ok? res.json(): Promise.reject(res.status))
+        .then(data=> {
+            console.log(data)
+        })
+
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {
             if (data.restart_requested) {
@@ -274,7 +280,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             if (!currentForcedVideoProcessed) {
-                if (data.detected && !isAudioPlaying && !isShowingStaticEmotion && interactionVideo.paused && randomEventVideo.paused) {
+                if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
                     handleEmotionDetection(data.emotion);
                 } else if (!data.detected && snapshotContainer.style.display !== 'none') {
                     videoFeed.style.display = "block";
