@@ -167,6 +167,10 @@
             transition: background-color 0.2s;
             min-width: 220px;
         }
+        .button-start-loop { background-color: #4CAF50; }
+        .button-start-loop:hover { background-color: #45a049; }
+        .button-stop-loop { background-color: #f44336; }
+        .button-stop-loop:hover { background-color: #da190b; }
         #button-play-video { background-color: #4CAF50; }
         #button-play-video:hover { background-color: #45a049; }
         #button-skip-video { background-color: #f44336; }
@@ -323,6 +327,12 @@
             </div>
         </div>
 
+        <div class="controls-section video-controls">
+            <h3>Reproducir Videos Automaticos</h3>
+            <button id="button-loop">🔁 Iniciar</button>
+            <!-- <button id="button-stop-loop">🛑 Detener</button> -->
+        </div>
+
     </div>
 
     <script>
@@ -352,14 +362,38 @@
         const delayBetweenInput = document.getElementById('delay-between');
         const triggerEventButton = document.getElementById('button-trigger-event');
 
+        const buttonsLoop = {
+            button: document.getElementById('button-loop'),
+        };
+
         const mainAppUrl = `http://${window.location.hostname}:5000`;
         const movementAppUrl = `http://${window.location.hostname}:5001`;
 
+        let buttonsLoopState = false;
+
         emotionSelect.addEventListener('change', function(event) {
             const selectedValue = event.target.value;
-            fetch(`http://localhost:5000/set_predete_emotion?emotion=${selectedValue}`)
+            fetch(`${mainAppUrl}/set_predete_emotion?emotion=${selectedValue}`, {
+                method: 'POST'
+            })
+            console.log(`Predetermined emotion set to: ${selectedValue}`);
             });
 
+        
+        buttonsLoop.button.addEventListener('click', () => {
+            buttonsLoopState = !buttonsLoopState;
+            if (buttonsLoopState) {
+                buttonsLoop.button.textContent = '🔁 Detener';
+                buttonsLoop.button.classList.add('button-stop-loop');
+                buttonsLoop.button.classList.remove('button-start-loop');
+                fetch(`${mainAppUrl}/set_video_loop_state?state=true`, { method: 'POST' });
+            } else {
+                buttonsLoop.button.textContent = '🔁 Iniciar';
+                buttonsLoop.button.classList.add('button-start-loop');
+                buttonsLoop.button.classList.remove('button-stop-loop');
+                fetch(`${mainAppUrl}/set_video_loop_state?state=false`, { method: 'POST' });
+            }
+        });
 
         // --- Funciones de Comunicación ---
 
@@ -395,6 +429,38 @@
             } catch (error) {
                 console.error('Error fetching volume:', error);
                 volumePercentage.textContent = 'N/A';
+            }
+        }
+
+
+        async function fetchEmotion(){
+            try {
+                const response = await fetch(`${mainAppUrl}/get_predete_emotion`);
+                const data = await response.json();
+                if (response.ok) {
+                    emotionSelect.value = data.emotion;
+                } else {
+                    console.error('Error fetching emotion:', data);
+                }
+            } catch (error) {
+                console.error('Error fetching emotion:', error);
+            }
+        }
+
+        async function fetchLoopState() {
+            try {
+                const response = await fetch(`${mainAppUrl}/get_video_loop_state`);
+                const data = await response.json();
+                if (response.ok) {
+                    buttonsLoopState = data.looping;
+                    buttonsLoop.button.textContent = buttonsLoopState ? '🔁 Detener' : '🔁 Iniciar';
+                    buttonsLoop.button.classList.toggle('button-start-loop', !buttonsLoopState);
+                    buttonsLoop.button.classList.toggle('button-stop-loop', buttonsLoopState);
+                } else {
+                    console.error('Error fetching loop state:', data);
+                }
+            } catch (error) {
+                console.error('Error fetching loop state:', error);
             }
         }
         
@@ -551,6 +617,8 @@
             fetchVideoList();
             fetchEventConfig();
             fetchVolume(); // NUEVO: Cargar el volumen inicial
+            fetchEmotion();
+            fetchLoopState(); 
 
             const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
             configInputs.forEach(input => input.addEventListener('change', sendEventConfig));

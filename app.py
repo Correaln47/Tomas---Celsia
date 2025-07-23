@@ -26,6 +26,9 @@ current_frame = None
 detection_complete = False
 detected_emotion = "neutral"
 predete_emotion = "neutral"
+
+looping_videos = False
+
 detected_snapshot = None
 forced_video_to_play = None
 restart_requested = False
@@ -302,13 +305,25 @@ def get_predete_emotion_route():
     global predete_emotion
     return jsonify({"emotion": predete_emotion})
 
-@app.route("/set_predete_emotion", methods=['GET'])
+@app.route("/set_predete_emotion", methods=['POST'])
 def set_predete_emotion():
-    emotion = request.args.get('emotion')
-    print(f"Received emotion: ${emotion}")
-    return "Emotion received"
+    global predete_emotion
+    predete_emotion = request.args.get('emotion')
+    return jsonify({"emotion": predete_emotion})
+
+#------------------------- Videos automáticos -----------------
+@app.route('/set_video_loop_state', methods=['POST'])
+def set_video_loop_state():
+    global looping_videos
+    looping_videos = request.args.get('state')
+    return jsonify({"looping": looping_videos})
 
 
+@app.route('/get_video_loop_state', methods=['GET'])
+def get_video_loop_state():
+    global looping_videos
+    return jsonify({"looping": looping_videos})
+    
 
 if __name__ == '__main__':
     threading.Thread(target=detection_loop, daemon=True).start()

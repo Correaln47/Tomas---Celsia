@@ -12,9 +12,9 @@ document.addEventListener("DOMContentLoaded", function() {
     const ctx = faceCanvas.getContext('2d');
 
     // --- Variables de Estado ---
-    let currentEmotion = "neutral";
+    let currentEmotion = "happy";
     let isAudioPlaying = false;
-    let isShowingStaticEmotion = false;
+    let isShowingStaticEmotion = true;
     let currentForcedVideoProcessed = null;
     let audioContext = null;
     let audioAnalyser = null;
@@ -249,7 +249,17 @@ document.addEventListener("DOMContentLoaded", function() {
     function pollDetectionStatus() {
 
         fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data)=>{
-            console.log(data)
+            console.log(`Predetermined emotion: ${data.emotion}`);
+            if (data.emotion !== "neutral") {
+                isShowingStaticEmotion = true;
+                drawStaticEmotionFace(ctx, data.emotion);
+
+            } 
+            else {
+                isShowingStaticEmotion = false;
+                drawAnimatedFace(0);
+            }
+
         })
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
         .then(data => {
