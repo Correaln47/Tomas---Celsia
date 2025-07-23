@@ -224,9 +224,9 @@ document.addEventListener("DOMContentLoaded", function() {
     function animateFace() {
         requestAnimationFrame(animateFace);
 
-        if (isShowingStaticEmotion) {
-            return;
-        }
+        // if (isShowingStaticEmotion) {
+        //     return;
+        // }
         
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
         
