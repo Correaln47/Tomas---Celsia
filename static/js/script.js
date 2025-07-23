@@ -362,8 +362,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 faceCanvas.style.display = 'block';
                 currentForcedVideoProcessed = null;
             };
-    if (looping) {
-             triggerVideo()
+            if (looping) {
+                triggerVideo()
             }
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;
