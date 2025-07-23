@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     // --- Selectores de Elementos del DOM ---
     const mainContainer = document.getElementById('main-container');
     const videoFeed = document.getElementById('videoFeed');
@@ -47,8 +47,8 @@ document.addEventListener("DOMContentLoaded", function() {
             drawStaticEmotionFace(ctx, currentEmotion);
         } else if (!isAudioPlaying) {
             // Si no está sonando nada, dibuja la cara "neutra" animada.
-            drawAnimatedFace(0); 
-            
+            drawAnimatedFace(0);
+
         }
         // Si el audio está sonando, el bucle 'animateFace' se encargará de redibujar.
     }
@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }, { once: true });
         randomEventVideo.load();
     }
-    
+
     // --- Función para dibujar la cara estática de la emoción (Sin cambios) ---
     function drawStaticEmotionFace(ctx, emotion) {
 
@@ -170,7 +170,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
         const t = Date.now() / 1000;
         const floatOffset = (ch * 0.01) * Math.sin(t * 0.8);
-        
+
         // Ojos
         const eyeOffsetY = ch * -0.2;
         const eyeSeparation = cw * 0.5;
@@ -178,18 +178,18 @@ document.addEventListener("DOMContentLoaded", function() {
         let baseEyeHeight = ch * 0.15;
         ctx.fillStyle = "black";
         baseEyeHeight = Math.max(baseEyeHeight * 0.4, baseEyeHeight - (amplitude * baseEyeHeight * 0.6));
-        
+
         const eyeY = (ch / 2) + eyeOffsetY + floatOffset;
         ctx.fillRect((cw / 2) - (eyeSeparation / 2) - baseEyeWidth / 2, eyeY - baseEyeHeight / 2, baseEyeWidth, baseEyeHeight);
         ctx.fillRect((cw / 2) + (eyeSeparation / 2) - baseEyeWidth / 2, eyeY - baseEyeHeight / 2, baseEyeWidth, baseEyeHeight);
-        
+
         // Boca parlante
         const mouthCenterY = (ch / 2) + (ch * 0.2) + floatOffset;
         let mouthRadiusX = cw * 0.25;
         let mouthRadiusY = ch * 0.1;
         ctx.beginPath();
         ctx.lineWidth = Math.max(5, cw * 0.015);
-        
+
         mouthRadiusY = (mouthRadiusY * 0.1) + (amplitude * mouthRadiusY * 1.5);
         mouthRadiusX += (amplitude * mouthRadiusX * 0.2);
         ctx.ellipse(cw / 2, mouthCenterY, mouthRadiusX, mouthRadiusY, 0, 0, Math.PI * 2);
@@ -199,7 +199,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // --- Lógica de Audio (Sin cambios) ---
     function setupAudioAnalyser(audioElement) {
-        if (!audioContext) audioContext = new(window.AudioContext || window.webkitAudioContext)();
+        if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
         if (audioContext.state === 'suspended') audioContext.resume();
         try {
             const source = audioContext.createMediaElementSource(audioElement);
@@ -227,9 +227,9 @@ document.addEventListener("DOMContentLoaded", function() {
         if (isShowingStaticEmotion) {
             return;
         }
-        
+
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
-        
+
         if (videoContainer.style.display !== "flex" && randomEventVideo.style.display !== 'block') {
             drawAnimatedFace(amplitude);
         } else {
@@ -251,13 +251,13 @@ document.addEventListener("DOMContentLoaded", function() {
     // --- Lógica Principal de Interacción (Sin cambios) ---
     function pollDetectionStatus() {
 
-        fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data)=>{
+        fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data) => {
             // console.log(`Predetermined emotion: ${data.emotion}`);
             if (data.emotion !== "neutral") {
                 isShowingStaticEmotion = true;
                 drawStaticEmotionFace(ctx, data.emotion);
 
-            } 
+            }
             else {
                 isShowingStaticEmotion = false;
                 drawAnimatedFace(0);
@@ -265,45 +265,43 @@ document.addEventListener("DOMContentLoaded", function() {
 
         })
 
-        fetch('/get_video_loop_state').then(res => res.ok? res.json(): Promise.reject(res.status))
-        .then(data=> {
-            console.log(data)
-            if (data.looping){
+        fetch('/get_video_loop_state').then(res => res.ok ? res.json() : Promise.reject(res.status))
+            .then(data => {
                 console.log(data)
-
-                // if(firstLoop){
-                //     looping = true
-                //     triggerVideo()
-                //     firstLoop = false
-                // }
-            }
-            else{
-                // firstLoop = true
-                // looping = false
-            }
-        })
+                if (data.looping) {
+                    if (firstLoop) {
+                        looping = true
+                        triggerVideo()
+                        firstLoop = false
+                    }
+                }
+                else {
+                    firstLoop = true
+                    looping = false
+                }
+            })
 
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
-        .then(data => {
-            if (data.restart_requested) {
-                return restartInteraction();
-            }
-
-            if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
-                currentForcedVideoProcessed = data.forced_video;
-                playSpecificVideo(data.forced_video);
-                return;
-            }
-
-            if (!currentForcedVideoProcessed) {
-                if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
-                    handleEmotionDetection(data.emotion);
-                } else if (!data.detected && snapshotContainer.style.display !== 'none') {
-                    videoFeed.style.display = "block";
-                    snapshotContainer.style.display = "none";
+            .then(data => {
+                if (data.restart_requested) {
+                    return restartInteraction();
                 }
-            }
-        }).catch(err => console.error("Polling error:", err));
+
+                if (data.forced_video && data.forced_video !== currentForcedVideoProcessed) {
+                    currentForcedVideoProcessed = data.forced_video;
+                    playSpecificVideo(data.forced_video);
+                    return;
+                }
+
+                if (!currentForcedVideoProcessed) {
+                    if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
+                        handleEmotionDetection(data.emotion);
+                    } else if (!data.detected && snapshotContainer.style.display !== 'none') {
+                        videoFeed.style.display = "block";
+                        snapshotContainer.style.display = "none";
+                    }
+                }
+            }).catch(err => console.error("Polling error:", err));
 
 
     }
@@ -329,28 +327,28 @@ document.addEventListener("DOMContentLoaded", function() {
         if (isAudioPlaying) return;
         const audioEmotion = ["disgust", "no_face"].includes(emotion) || !emotion ? "neutral" : emotion;
         fetch(`/get_random_audio?emotion=${audioEmotion}`)
-        .then(res => res.ok ? res.json() : Promise.reject())
-        .then(data => {
-            if (data.audio_url) {
-                playAudio(data.audio_url).finally(triggerVideo);
-            } else {
-                triggerVideo();
-            }
-        }).catch(triggerVideo);
+            .then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => {
+                if (data.audio_url) {
+                    playAudio(data.audio_url).finally(triggerVideo);
+                } else {
+                    triggerVideo();
+                }
+            }).catch(triggerVideo);
     }
 
     function triggerVideo() {
         if (currentForcedVideoProcessed) return;
         fetch('/get_random_video').then(res => res.ok ? res.json() : Promise.reject())
-        .then(data => {
-            if (data.video_url) {
-                playSpecificVideo(data.video_url);
-            } else {
-                restartInteraction();
-            }
-        }).catch(restartInteraction);
+            .then(data => {
+                if (data.video_url) {
+                    playSpecificVideo(data.video_url);
+                } else {
+                    restartInteraction();
+                }
+            }).catch(restartInteraction);
     }
-    
+
     function playSpecificVideo(videoPath) {
         const isSpecial = videoPath.includes('special/event.mp4');
         console.log(`Playing ${isSpecial ? 'special' : 'normal'} video: ${videoPath}`);
@@ -370,11 +368,6 @@ document.addEventListener("DOMContentLoaded", function() {
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
                     console.error("Error playing special video:", e);
-
-                    if (looping){
-                        triggerVideo()
-                    }
-                    
                     onEnd();
                 });
             }
@@ -382,7 +375,15 @@ document.addEventListener("DOMContentLoaded", function() {
             mainContainer.style.display = 'none';
             videoContainer.style.display = 'flex';
             interactionVideo.src = videoPath.startsWith('/static') ? videoPath : `/static/video/${videoPath}`;
-            interactionVideo.onended = restartInteraction;
+
+            if (looping) {
+                interactionVideo.onended = triggerVideo()
+            }
+            else {
+                interactionVideo.onended = restartInteraction;
+
+            }
+
             interactionVideo.onerror = restartInteraction;
             interactionVideo.play().catch(e => { console.error("Error playing interaction video:", e); restartInteraction(); });
         }
@@ -401,5 +402,5 @@ document.addEventListener("DOMContentLoaded", function() {
     animateFace();
     // 4. Iniciar el sondeo del estado del servidor.
     setInterval(pollDetectionStatus, 500);
-    
+
 });
