@@ -268,17 +268,17 @@ document.addEventListener("DOMContentLoaded", function () {
         fetch('/get_video_loop_state').then(res => res.ok ? res.json() : Promise.reject(res.status))
             .then(data => {
                 console.log(data)
-                if (data.looping) {
-                    if (firstLoop) {
-                        looping = true
-                        triggerVideo()
-                        firstLoop = false
-                    }
-                }
-                else {
-                    firstLoop = true
-                    looping = false
-                }
+                // if (data.looping) {
+                //     if (firstLoop) {
+                //         looping = true
+                //         triggerVideo()
+                //         firstLoop = false
+                //     }
+                // }
+                // else {
+                //     firstLoop = true
+                //     looping = false
+                // }
             })
 
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
@@ -376,13 +376,13 @@ document.addEventListener("DOMContentLoaded", function () {
             videoContainer.style.display = 'flex';
             interactionVideo.src = videoPath.startsWith('/static') ? videoPath : `/static/video/${videoPath}`;
 
-            if (looping) {
-                interactionVideo.onended = triggerVideo()
-            }
-            else {
+            // if (looping) {
+                // interactionVideo.onended = triggerVideo()
+            // }
+            // else {
                 interactionVideo.onended = restartInteraction;
 
-            }
+            // }
 
             interactionVideo.onerror = restartInteraction;
             interactionVideo.play().catch(e => { console.error("Error playing interaction video:", e); restartInteraction(); });
