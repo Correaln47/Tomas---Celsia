@@ -267,15 +267,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
         fetch('/get_video_loop_state').then(res => res.ok ? res.json() : Promise.reject(res.status))
             .then(data => {
-                console.log(data)
+                console.log('Loop state received:', data)
                 if (data.looping) {
                     if (firstLoop) {
                         looping = true
                         triggerVideo()
                         firstLoop = false
                     }
+                    // Asegurar que looping se mantenga true mientras el servidor lo indique
+                    looping = true
                 }
                 else {
+                    // Cuando el servidor indica que no hay looping, detenerlo inmediatamente
+                    if (looping) {
+                        console.log('Looping disabled, stopping after current video')
+                    }
                     firstLoop = true
                     looping = false
                 }
@@ -361,10 +367,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 randomEventVideo.style.display = 'none';
                 faceCanvas.style.display = 'block';
                 currentForcedVideoProcessed = null;
+                if (looping) {
+                    triggerVideo();
+                }
             };
-            if (looping) {
-                triggerVideo()
-            }
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;
             const playPromise = randomEventVideo.play();
@@ -380,13 +386,13 @@ document.addEventListener("DOMContentLoaded", function () {
             videoContainer.style.display = 'flex';
             interactionVideo.src = videoPath.startsWith('/static') ? videoPath : `/static/video/${videoPath}`;
 
-            // if (looping) {
-                // interactionVideo.onended = triggerVideo()
-            // }
-            // else {
+            if (looping) {
+                interactionVideo.onended = () => {
+                    triggerVideo();
+                };
+            } else {
                 interactionVideo.onended = restartInteraction;
-
-            // }
+            }
 
             interactionVideo.onerror = restartInteraction;
             interactionVideo.play().catch(e => { console.error("Error playing interaction video:", e); restartInteraction(); });
