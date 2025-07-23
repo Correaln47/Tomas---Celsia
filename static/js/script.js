@@ -269,15 +269,17 @@ document.addEventListener("DOMContentLoaded", function() {
         .then(data=> {
             console.log(data)
             if (data.looping){
-                if(firstLoop){
-                    looping = true
-                    triggerVideo()
-                    firstLoop = false
-                }
+                console.log(data)
+
+                // if(firstLoop){
+                //     looping = true
+                //     triggerVideo()
+                //     firstLoop = false
+                // }
             }
             else{
-                firstLoop = true
-                looping = false
+                // firstLoop = true
+                // looping = false
             }
         })
 
