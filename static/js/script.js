@@ -268,17 +268,17 @@ document.addEventListener("DOMContentLoaded", function () {
         fetch('/get_video_loop_state').then(res => res.ok ? res.json() : Promise.reject(res.status))
             .then(data => {
                 console.log(data)
-                // if (data.looping) {
-                //     if (firstLoop) {
-                //         looping = true
-                //         triggerVideo()
-                //         firstLoop = false
-                //     }
-                // }
-                // else {
-                //     firstLoop = true
-                //     looping = false
-                // }
+                if (data.looping) {
+                    if (firstLoop) {
+                        looping = true
+                        triggerVideo()
+                        firstLoop = false
+                    }
+                }
+                else {
+                    firstLoop = true
+                    looping = false
+                }
             })
 
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
@@ -362,6 +362,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 faceCanvas.style.display = 'block';
                 currentForcedVideoProcessed = null;
             };
+    if (looping) {
+             triggerVideo()
+            }
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;
             const playPromise = randomEventVideo.play();
@@ -371,6 +374,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     onEnd();
                 });
             }
+            
         } else {
             mainContainer.style.display = 'none';
             videoContainer.style.display = 'flex';
