@@ -21,6 +21,9 @@ document.addEventListener("DOMContentLoaded", function() {
     let audioDataArray = null;
     let isAnalyserReady = false;
 
+    let looping = false
+    let firstLoop = true
+
     // --- NUEVO: Función para ajustar la resolución del canvas ---
     /**
      * Ajusta la resolución interna del canvas para que coincida con su tamaño de visualización,
@@ -265,7 +268,15 @@ document.addEventListener("DOMContentLoaded", function() {
         fetch('/get_video_loop_state').then(res => res.ok? res.json(): Promise.reject(res.status))
         .then(data=> {
             if (data.looping){
-                triggerVideo()
+                if(firstLoop){
+                    looping = true
+                    triggerVideo()
+                    firstLoop = false
+                }
+            }
+            else{
+                firstLoop = true
+                looping = false
             }
         })
 
@@ -356,6 +367,11 @@ document.addEventListener("DOMContentLoaded", function() {
             if (playPromise !== undefined) {
                 playPromise.catch(e => {
                     console.error("Error playing special video:", e);
+
+                    if (looping){
+                        triggerVideo()
+                    }
+                    
                     onEnd();
                 });
             }
