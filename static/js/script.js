@@ -264,7 +264,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         fetch('/get_video_loop_state').then(res => res.ok? res.json(): Promise.reject(res.status))
         .then(data=> {
-            console.log(data)
+            if (data.looping){
+                triggerVideo()
+            }
         })
 
         fetch('/detection_status').then(res => res.ok ? res.json() : Promise.reject(res.status))
