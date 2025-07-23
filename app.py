@@ -321,7 +321,6 @@ def set_video_loop_state():
 
 @app.route('/get_video_loop_state', methods=['GET'])
 def get_video_loop_state():
-    global looping_videos
     return jsonify({"looping": looping_videos})
     
 
