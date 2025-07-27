@@ -1,0 +1,12 @@
+flask
+flask-cors
+opencv-python
+numpy
+tflite-runtime
+requests
+gpiozero
+pigpio
+google-oauth2-tool
+google-cloud-texttospeech
+vertexai
+werkzeug

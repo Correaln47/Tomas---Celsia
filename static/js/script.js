@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const ctx = faceCanvas.getContext('2d');
 
     // --- Variables de Estado ---
-    let currentEmotion = "happy";
+    let currentEmotion = "neutral";
     let isAudioPlaying = false;
     let isShowingStaticEmotion = true;
     let currentForcedVideoProcessed = null;
@@ -20,6 +20,8 @@ document.addEventListener("DOMContentLoaded", function () {
     let audioAnalyser = null;
     let audioDataArray = null;
     let isAnalyserReady = false;
+
+    let isTalking = false;
 
     let looping = false
     let firstLoop = true
@@ -253,7 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data) => {
             // console.log(`Predetermined emotion: ${data.emotion}`);
-            if (data.emotion !== "neutral") {
+            if (data.emotion !== "neutral" && !isTalking) {
                 isShowingStaticEmotion = true;
                 drawStaticEmotionFace(ctx, data.emotion);
 
@@ -324,6 +326,7 @@ document.addEventListener("DOMContentLoaded", function () {
         drawStaticEmotionFace(ctx, currentEmotion);
 
         setTimeout(() => {
+            isTalking = true;
             isShowingStaticEmotion = false;
             triggerAudio(currentEmotion);
         }, 2000);
@@ -352,7 +355,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else {
                     restartInteraction();
                 }
-            }).catch(restartInteraction);
+            })
+            .catch(restartInteraction);
     }
 
     function playSpecificVideo(videoPath) {
@@ -367,9 +371,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 randomEventVideo.style.display = 'none';
                 faceCanvas.style.display = 'block';
                 currentForcedVideoProcessed = null;
-                if (looping) {
-                    triggerVideo();
-                }
+                // if (looping) {
+                //     triggerVideo();
+                // }
             };
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;

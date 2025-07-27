@@ -392,6 +392,7 @@
                 buttonsLoop.button.classList.add('button-start-loop');
                 buttonsLoop.button.classList.remove('button-stop-loop');
                 fetch(`${mainAppUrl}/set_video_loop_state?state=false`, { method: 'POST' });
+                fetch(`${mainAppUrl}/restart`);
             }
         });
 
