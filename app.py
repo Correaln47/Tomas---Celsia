@@ -317,7 +317,6 @@ def set_predete_emotion():
 def set_video_loop_state():
     global looping_videos
     state_param = request.args.get('state')
-    # Convertir string a boolean correctamente
     looping_videos = state_param == 'true' if state_param is not None else False
     return jsonify({"looping": looping_videos})
 
@@ -328,16 +327,15 @@ def get_video_loop_state():
 
 
 @app.route('/set_video_loop_camera_state', methods=['POST'])
-def set_video_loop_state():
+def set_video_loop_camera_state():
     global looping_videos_camera
     state_param = request.args.get('state')
-    # Convertir string a boolean correctamente
     looping_videos_camera = state_param == 'true' if state_param is not None else False
     return jsonify({"looping": looping_videos_camera})
 
 
 @app.route('/get_video_loop_camera_state', methods=['GET'])
-def get_video_loop_state():
+def get_video_loop_camera_state():
     return jsonify({"looping": looping_videos_camera})
 
 
