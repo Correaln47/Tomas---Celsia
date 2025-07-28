@@ -252,18 +252,19 @@ document.addEventListener("DOMContentLoaded", function () {
         cameraReplacementVideo.src = videoUrl;
         cameraReplacementVideo.play();
         console.log('Mostrando video de reemplazo:', videoUrl);
+        cameraReplacementVideo.onended() = ()=>{
+            fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => {
+                if (data.video_url) {
+                    cameraReplacementVideo.src = data.video_url
+                    cameraReplacementVideo.play()
+                }
+            })
+            .catch(restartInteraction);
+        }
+
     }
 
-    // cameraReplacementVideo.onend(()=>{
-    //         fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
-    //         .then(data => {
-    //             if (data.video_url) {
-    //                 cameraReplacementVideo.src = data.video_url
-    //                 cameraReplacementVideo.play()
-    //             }
-    //         })
-    //         .catch(restartInteraction);
-    //     })
 
     // Polling para comandos de control de cámara
     // function checkCameraControl() {
