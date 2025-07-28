@@ -329,29 +329,42 @@ def get_video_loop_state():
 # NUEVO: Ruta para alternar cámara con video aleatorio
 @app.route('/toggle_camera', methods=['POST'])
 def toggle_camera():
-    global camera_disabled, forced_video_to_play
+    global camera_disabled
     
     video_upload_path = os.path.join(app.static_folder, "video_upload")
     
     # Verificar si existe la carpeta y tiene videos
     if not os.path.exists(video_upload_path):
-        return jsonify({'message': 'No se encontró la carpeta de videos de cámara.'}), 404
+        return jsonify({'success': False, 'message': 'No se encontró la carpeta de videos de cámara.'}), 404
     
     videos = [f for f in os.listdir(video_upload_path) if f.lower().endswith('.mp4')]
     if not videos:
-        return jsonify({'message': 'No hay videos disponibles para mostrar en lugar de la cámara.'}), 404
+        return jsonify({'success': False, 'message': 'No hay videos disponibles para mostrar en lugar de la cámara.'}), 404
     
     if camera_disabled:
         # Reactivar cámara
         camera_disabled = False
-        forced_video_to_play = None
-        return jsonify({'message': 'Cámara reactivada. Volviendo al feed de video en vivo.'})
+        return jsonify({'success': True, 'camera_enabled': True, 'message': 'Cámara reactivada. Volviendo al feed de video en vivo.'})
     else:
-        # Desactivar cámara y mostrar video aleatorio
+        # Desactivar cámara y devolver video aleatorio
         camera_disabled = True
         chosen_video = random.choice(videos)
-        forced_video_to_play = f"video_upload/{chosen_video}"
-        return jsonify({'message': f'Cámara desactivada. Reproduciendo video aleatorio: {chosen_video}'})
+        video_url = f"/static/video_upload/{chosen_video}"
+        return jsonify({'success': True, 'camera_enabled': False, 'video_url': video_url, 'message': f'Cámara desactivada. Reproduciendo video aleatorio: {chosen_video}'})
+
+# NUEVO: Ruta para controlar la visualización de la cámara desde el frontend
+@app.route('/camera_control', methods=['POST'])
+def camera_control():
+    data = request.json
+    action = data.get('action')
+    
+    if action == 'enable_camera':
+        return jsonify({'success': True, 'action': 'enable_camera'})
+    elif action == 'show_video':
+        video_url = data.get('video_url')
+        return jsonify({'success': True, 'action': 'show_video', 'video_url': video_url})
+    else:
+        return jsonify({'success': False, 'message': 'Acción no válida'}), 400
     
 
 if __name__ == '__main__':

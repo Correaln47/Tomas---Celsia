@@ -623,10 +623,10 @@
             try {
                 const response = await fetch(`${mainAppUrl}/toggle_camera`, { method: 'POST' });
                 const data = await response.json();
-                if (response.ok) {
+                if (response.ok && data.success) {
                     alert('Éxito: ' + data.message);
                 } else {
-                    alert('Error: ' + data.message);
+                    alert('Error: ' + (data.message || 'Error desconocido'));
                 }
             } catch (error) {
                 console.error('Error toggling camera:', error);

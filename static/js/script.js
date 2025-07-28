@@ -222,6 +222,54 @@ document.addEventListener("DOMContentLoaded", function () {
         return audioDataArray.slice(0, audioDataArray.length / 2).reduce((s, v) => s + v, 0) / (audioDataArray.length / 2) / 255;
     }
 
+    // --- Control de Cámara ---
+    const cameraReplacementVideo = document.getElementById('cameraReplacementVideo');
+    let cameraReplacementActive = false;
+
+    function enableCamera() {
+        cameraReplacementActive = false;
+        videoFeed.style.display = 'block';
+        cameraReplacementVideo.style.display = 'none';
+        cameraReplacementVideo.pause();
+        console.log('Cámara habilitada');
+    }
+
+    function showReplacementVideo(videoUrl) {
+        cameraReplacementActive = true;
+        videoFeed.style.display = 'none';
+        cameraReplacementVideo.style.display = 'block';
+        cameraReplacementVideo.src = videoUrl;
+        cameraReplacementVideo.play();
+        console.log('Mostrando video de reemplazo:', videoUrl);
+    }
+
+    // Polling para comandos de control de cámara
+    function checkCameraControl() {
+        fetch('/camera_control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check' })
+        })
+        .then(res => {
+            if (res.ok) {
+                return res.json();
+            }
+            return null;
+        })
+        .then(data => {
+            if (data && data.success) {
+                if (data.action === 'enable_camera' && cameraReplacementActive) {
+                    enableCamera();
+                } else if (data.action === 'show_video' && !cameraReplacementActive) {
+                    showReplacementVideo(data.video_url);
+                }
+            }
+        })
+        .catch(err => {
+            // Silenciar errores de polling
+        });
+    }
+
     // --- Bucle de Animación ---
     function animateFace() {
         requestAnimationFrame(animateFace);
