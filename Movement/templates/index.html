@@ -333,6 +333,11 @@
             <!-- <button id="button-stop-loop">🛑 Detener</button> -->
         </div>
 
+        <div class="controls-section">
+            <h3>Control de Cámara</h3>
+            <button id="toggle-camera-feed">📹 Alternar Video Aleatorio</button>
+        </div>
+
     </div>
 
     <script>
@@ -613,6 +618,22 @@
         if (playVideoButton) playVideoButton.addEventListener('click', playSelectedVideo);
         if (skipVideoButton) skipVideoButton.addEventListener('click', skipCurrentVideo);
 
+        // NUEVO: Función para alternar la cámara
+        async function toggleCameraFeed() {
+            try {
+                const response = await fetch(`${mainAppUrl}/toggle_camera`, { method: 'POST' });
+                const data = await response.json();
+                if (response.ok) {
+                    alert('Éxito: ' + data.message);
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error toggling camera:', error);
+                alert('Error de comunicación al alternar la cámara.');
+            }
+        }
+
         // --- Inicialización ---
         document.addEventListener('DOMContentLoaded', () => {
             fetchVideoList();
@@ -629,6 +650,12 @@
 
             if (triggerEventButton) {
                 triggerEventButton.addEventListener('click', triggerSpecialEventManually);
+            }
+
+            // NUEVO: Event listener para el botón de alternar cámara
+            const toggleCameraButton = document.getElementById('toggle-camera-feed');
+            if (toggleCameraButton) {
+                toggleCameraButton.addEventListener('click', toggleCameraFeed);
             }
         });
     </script>

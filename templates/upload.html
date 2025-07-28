@@ -115,6 +115,21 @@
     </div>
     
     <div class="upload-section">
+        <h2>Subir Video para Reemplazo de Cámara</h2>
+        <form id="uploadCameraVideoForm" method="post" enctype="multipart/form-data" action="{{ url_for('upload_file') }}">
+          <input type="file" name="camera_video" accept="video/*" required>
+          <input type="submit" value="Subir Video">
+        </form>
+         <div class="upload-progress-container" id="camera_videoProgressContainer">
+            <div class="upload-progress-bar" id="camera_videoProgressBar">0%</div>
+        </div>
+        <div class="upload-status-text" id="camera_videoStatusText"></div>
+        <div class="recommendation-box">
+            <strong>Funcionalidad:</strong> Estos videos se reproducirán aleatoriamente en lugar del feed de la cámara cuando se active la función "Alternar Video Aleatorio" desde el puerto 5001. Útil para mostrar contenido pregrabado sin usar la cámara en vivo.
+        </div>
+    </div>
+    
+    <div class="upload-section">
         <h2>Subir Nueva Imagen para Carrusel</h2>
         <form id="uploadCarouselForm" method="post" enctype="multipart/form-data" action="{{ url_for('upload_file') }}">
           <input type="file" name="carousel_image" accept="image/*" required>
@@ -201,6 +216,27 @@
         </div>
         
         <div>
+            <h3>Videos de Reemplazo de Cámara (en static/video_upload):</h3>
+            {% if camera_videos %}
+                <ul class="file-list">
+                {% for filename in camera_videos %}
+                    <li>
+                        <span>{{ filename }}</span>
+                        <div class="file-actions">
+                            <a href="{{ url_for('download_file', type='camera_video', subpath='_', filename=filename) }}" class="download-button">Descargar</a>
+                            <form method="post" action="{{ url_for('delete_file', type='camera_video', subpath='_', filename=filename) }}" onsubmit="return confirm('¿Estás seguro de que quieres eliminar este video de cámara?');">
+                                <button type="submit">Eliminar</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>No hay videos de reemplazo de cámara.</p>
+            {% endif %}
+        </div>
+        
+        <div>
             <h3>Imágenes del Carrusel (en static/carousel_images):</h3>
             {% if carousel_images %}
                 <ul class="file-list">
@@ -227,6 +263,7 @@
          document.getElementById('uploadSpecialEventForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'special_event'));
          document.getElementById('uploadVideoForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'video'));
          document.getElementById('uploadAudioForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'audio'));
+         document.getElementById('uploadCameraVideoForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'camera_video'));
          document.getElementById('uploadCarouselForm').addEventListener('submit', (e) => e.preventDefault() || handleUpload(e.target, 'carousel_image'));
 
          function handleUpload(form, fileType) {

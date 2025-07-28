@@ -20,6 +20,7 @@ VIDEO_FOLDER = os.path.join(STATIC_FOLDER, 'video')
 AUDIO_FOLDER = os.path.join(STATIC_FOLDER, 'audio')
 CAROUSEL_FOLDER = os.path.join(STATIC_FOLDER, 'carousel_images')
 SPECIAL_FOLDER = os.path.join(STATIC_FOLDER, 'special') ### NUEVO ###
+CAMERA_VIDEO_FOLDER = os.path.join(STATIC_FOLDER, 'video_upload') ### NUEVO ###
 TEMPLATES_FOLDER = os.path.join(BASE_DIR, 'templates')
 
 ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'webm', 'mov', 'avi'}
@@ -35,6 +36,7 @@ app.config['VIDEO_FOLDER'] = VIDEO_FOLDER
 app.config['AUDIO_FOLDER'] = AUDIO_FOLDER
 app.config['CAROUSEL_FOLDER'] = CAROUSEL_FOLDER
 app.config['SPECIAL_FOLDER'] = SPECIAL_FOLDER ### NUEVO ###
+app.config['CAMERA_VIDEO_FOLDER'] = CAMERA_VIDEO_FOLDER ### NUEVO ###
 app.secret_key = 'super secret key'
 
 
@@ -61,7 +63,7 @@ def update_carousel_json():
 
 # --- Asegurarse que las carpetas base existan ---
 ### MODIFICADO ###
-for folder in [VIDEO_FOLDER, AUDIO_FOLDER, CAROUSEL_FOLDER, SPECIAL_FOLDER, TEMPLATES_FOLDER]:
+for folder in [VIDEO_FOLDER, AUDIO_FOLDER, CAROUSEL_FOLDER, SPECIAL_FOLDER, CAMERA_VIDEO_FOLDER, TEMPLATES_FOLDER]:
     if not os.path.exists(folder):
         try:
             os.makedirs(folder)
@@ -115,6 +117,14 @@ def upload_file():
             target_folder_relative_for_log = os.path.relpath(upload_folder, STATIC_FOLDER)
             update_json_flag = True
         
+        ### NUEVO: Bloque para manejar la subida de videos de cámara ###
+        elif 'camera_video' in request.files and request.files['camera_video'].filename != '':
+            file = request.files['camera_video']
+            upload_folder = app.config['CAMERA_VIDEO_FOLDER']
+            allowed_extensions = ALLOWED_VIDEO_EXTENSIONS
+            file_type = "Video de Cámara"
+            target_folder_relative_for_log = os.path.relpath(upload_folder, STATIC_FOLDER)
+        
         ### NUEVO: Bloque para manejar la subida del video del evento especial ###
         elif 'special_event' in request.files and request.files['special_event'].filename != '':
             file = request.files['special_event']
@@ -160,6 +170,9 @@ def upload_file():
     special_event_file = None
     if os.path.exists(os.path.join(app.config['SPECIAL_FOLDER'], SPECIAL_EVENT_FILENAME)):
         special_event_file = SPECIAL_EVENT_FILENAME
+    
+    ### NUEVO: Listar videos de cámara ###
+    camera_videos = sorted([f for f in os.listdir(app.config['CAMERA_VIDEO_FOLDER']) if f.lower().endswith('.mp4')])
 
     audio_files_by_emotion = {}
     for emotion in ALLOWED_EMOTION_FOLDERS:
@@ -167,12 +180,13 @@ def upload_file():
         if os.path.isdir(emotion_folder_path):
             audio_files_by_emotion[emotion] = sorted([f for f in os.listdir(emotion_folder_path) if os.path.isfile(os.path.join(emotion_folder_path, f))])
 
-    ### MODIFICADO: Añade 'special_event_file' al render_template ###
+    ### MODIFICADO: Añade 'special_event_file' y 'camera_videos' al render_template ###
     return render_template('upload.html',
                            videos=video_files,
                            audio_files_by_emotion=audio_files_by_emotion,
                            allowed_emotions=ALLOWED_EMOTION_FOLDERS,
                            carousel_images=carousel_images,
+                           camera_videos=camera_videos,
                            special_event_file=special_event_file)
 
 @app.route('/delete/<type>/<subpath>/<path:filename>', methods=['POST'])
@@ -188,6 +202,9 @@ def delete_file(type, subpath, filename):
     elif type == 'carousel_image':
         base_folder = app.config['CAROUSEL_FOLDER']
         update_json_flag = True
+    ### NUEVO: Manejo de eliminación para videos de cámara ###
+    elif type == 'camera_video':
+        base_folder = app.config['CAMERA_VIDEO_FOLDER']
     ### NUEVO: Manejo de eliminación para el archivo de evento especial ###
     elif type == 'special_event':
         base_folder = app.config['SPECIAL_FOLDER']
@@ -223,6 +240,8 @@ def download_file(type, subpath, filename):
         directory = os.path.join(app.config['AUDIO_FOLDER'], secure_filename(subpath))
     elif type == 'carousel_image':
         directory = app.config['CAROUSEL_FOLDER']
+    elif type == 'camera_video':
+        directory = app.config['CAMERA_VIDEO_FOLDER']
     elif type == 'special_event':
         directory = app.config['SPECIAL_FOLDER']
     else:

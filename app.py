@@ -28,6 +28,7 @@ detected_emotion = "neutral"
 predete_emotion = "neutral"
 
 looping_videos = False
+camera_disabled = False  # NUEVO: Estado de la cámara
 
 detected_snapshot = None
 forced_video_to_play = None
@@ -324,6 +325,33 @@ def set_video_loop_state():
 @app.route('/get_video_loop_state', methods=['GET'])
 def get_video_loop_state():
     return jsonify({"looping": looping_videos})
+
+# NUEVO: Ruta para alternar cámara con video aleatorio
+@app.route('/toggle_camera', methods=['POST'])
+def toggle_camera():
+    global camera_disabled, forced_video_to_play
+    
+    video_upload_path = os.path.join(app.static_folder, "video_upload")
+    
+    # Verificar si existe la carpeta y tiene videos
+    if not os.path.exists(video_upload_path):
+        return jsonify({'message': 'No se encontró la carpeta de videos de cámara.'}), 404
+    
+    videos = [f for f in os.listdir(video_upload_path) if f.lower().endswith('.mp4')]
+    if not videos:
+        return jsonify({'message': 'No hay videos disponibles para mostrar en lugar de la cámara.'}), 404
+    
+    if camera_disabled:
+        # Reactivar cámara
+        camera_disabled = False
+        forced_video_to_play = None
+        return jsonify({'message': 'Cámara reactivada. Volviendo al feed de video en vivo.'})
+    else:
+        # Desactivar cámara y mostrar video aleatorio
+        camera_disabled = True
+        chosen_video = random.choice(videos)
+        forced_video_to_play = f"video_upload/{chosen_video}"
+        return jsonify({'message': f'Cámara desactivada. Reproduciendo video aleatorio: {chosen_video}'})
     
 
 if __name__ == '__main__':
