@@ -232,16 +232,25 @@ document.addEventListener("DOMContentLoaded", function () {
         cameraReplacementActive = false;
         videoFeed.style.display = 'block';
         cameraReplacementVideo.style.display = 'none';
-        // cameraReplacementVideo.pause();
+        cameraReplacementVideo.pause();
         console.log('Cámara habilitada');
     }
 
-    function showReplacementVideo(videoUrl) {
+    async function showReplacementVideo() {
         cameraReplacementActive = true;
         videoFeed.style.display = 'none';
+
+        videoUrl = await fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => {
+                if (data.video_url) {
+                    return data.video_url
+                }
+            })
+            .catch(restartInteraction);
+
         cameraReplacementVideo.style.display = 'block';
         cameraReplacementVideo.src = videoUrl;
-        // cameraReplacementVideo.play();
+        cameraReplacementVideo.play();
         console.log('Mostrando video de reemplazo:', videoUrl);
     }
 
@@ -306,6 +315,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(data => {
                 if (data.looping) {
                     if (cameraReplacementActiveFirst) {
+                    
                         showReplacementVideo()
                         cameraReplacementDesactiveFirst = true
                         cameraReplacementActiveFirst = false
