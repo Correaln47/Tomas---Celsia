@@ -27,7 +27,7 @@ body {
 }
 
 /* El resto de tus estilos originales se mantienen intactos */
-#videoFeed, #snapshot {
+#videoFeed, #snapshot, #cameraReplacementVideo {
   width: 100%; 
   height: auto; 
   max-height: 60vh; 
@@ -190,7 +190,7 @@ body {
 
 @media (max-width: 768px) {
   /* Tus media queries originales no cambian */
-  #videoFeed, #snapshot {
+  #videoFeed, #snapshot, #cameraReplacementVideo {
     width: 100%;
     height: auto;
     max-height: 50vh;
