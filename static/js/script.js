@@ -224,13 +224,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Control de Cámara ---
     const cameraReplacementVideo = document.getElementById('cameraReplacementVideo');
-    let cameraReplacementActive = false;
+    let cameraReplacementActiveFirst = true;
+    let cameraReplacementDesactiveFirst = true;
+
 
     function enableCamera() {
         cameraReplacementActive = false;
         videoFeed.style.display = 'block';
         cameraReplacementVideo.style.display = 'none';
-        cameraReplacementVideo.pause();
+        // cameraReplacementVideo.pause();
         console.log('Cámara habilitada');
     }
 
@@ -239,36 +241,36 @@ document.addEventListener("DOMContentLoaded", function () {
         videoFeed.style.display = 'none';
         cameraReplacementVideo.style.display = 'block';
         cameraReplacementVideo.src = videoUrl;
-        cameraReplacementVideo.play();
+        // cameraReplacementVideo.play();
         console.log('Mostrando video de reemplazo:', videoUrl);
     }
 
     // Polling para comandos de control de cámara
-    function checkCameraControl() {
-        fetch('/camera_control', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'check' })
-        })
-        .then(res => {
-            if (res.ok) {
-                return res.json();
-            }
-            return null;
-        })
-        .then(data => {
-            if (data && data.success) {
-                if (data.action === 'enable_camera' && cameraReplacementActive) {
-                    enableCamera();
-                } else if (data.action === 'show_video' && !cameraReplacementActive) {
-                    showReplacementVideo(data.video_url);
-                }
-            }
-        })
-        .catch(err => {
-            // Silenciar errores de polling
-        });
-    }
+    // function checkCameraControl() {
+    //     fetch('/camera_control', {
+    //         method: 'POST',
+    //         headers: { 'Content-Type': 'application/json' },
+    //         body: JSON.stringify({ action: 'check' })
+    //     })
+    //     .then(res => {
+    //         if (res.ok) {
+    //             return res.json();
+    //         }
+    //         return null;
+    //     })
+    //     .then(data => {
+    //         if (data && data.success) {
+    //             if (data.action === 'enable_camera' && cameraReplacementActive) {
+    //                 enableCamera();
+    //             } else if (data.action === 'show_video' && !cameraReplacementActive) {
+    //                 showReplacementVideo(data.video_url);
+    //             }
+    //         }
+    //     })
+    //     .catch(err => {
+    //         // Silenciar errores de polling
+    //     });
+    // }
 
     // --- Bucle de Animación ---
     function animateFace() {
@@ -300,6 +302,24 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- Lógica Principal de Interacción (Sin cambios) ---
     function pollDetectionStatus() {
+
+    fetch('/get_video_loop_camera_state').then(res => res.ok ? res.json() : Promise.reject(res.status))
+            .then(data => {
+                if (data.looping) {
+                    if (cameraReplacementActiveFirst) {
+                        showReplacementVideo()
+                        cameraReplacementDesactiveFirst = true
+                        cameraReplacementActiveFirst = false
+                    }
+                }
+                else {
+                    if (cameraReplacementDesactiveFirst){
+                        enableCamera()
+                        cameraReplacementDesactiveFirst = false
+                        cameraReplacementActiveFirst = true
+                    }
+                }
+            })
 
         fetch('/get_predete_emotion').then(res => res.ok ? res.json() : Promise.reject(res.status)).then((data) => {
             // console.log(`Predetermined emotion: ${data.emotion}`);

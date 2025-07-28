@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>RPi Robot Control</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
@@ -19,6 +20,7 @@
             -ms-user-select: none;
             user-select: none;
         }
+
         .main-container {
             display: flex;
             flex-direction: column;
@@ -26,16 +28,20 @@
             width: 100%;
             max-width: 500px;
         }
-        h2, h3 {
+
+        h2,
+        h3 {
             text-align: center;
             color: #333;
         }
+
         .robot-orientation {
             width: 120px;
             height: auto;
             margin-bottom: 10px;
             text-align: center;
         }
+
         .robot-body {
             width: 80px;
             height: 120px;
@@ -51,16 +57,19 @@
             padding-top: 10px;
             box-sizing: border-box;
         }
+
         .robot-body .arrow-up {
             font-size: 30px;
             color: white;
             line-height: 1;
         }
+
         .robot-front-text {
             font-size: 0.9em;
             color: white;
             margin-top: 10px;
         }
+
         .control-grid {
             display: grid;
             grid-template-areas:
@@ -70,6 +79,7 @@
             gap: 15px;
             margin-bottom: 25px;
         }
+
         .control-button {
             width: 90px;
             height: 90px;
@@ -82,17 +92,35 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
             transition: background-color 0.1s, transform 0.1s;
         }
+
         .control-button:active {
             background-color: #bbb;
             transform: scale(0.95);
         }
-        #button-forward { grid-area: forward; background-color: #aae8aa;}
-        #button-backward { grid-area: backward; background-color: #aae8aa;}
-        #button-left { grid-area: left; background-color: #aae8aa;}
-        #button-right { grid-area: right; background-color: #aae8aa;}
+
+        #button-forward {
+            grid-area: forward;
+            background-color: #aae8aa;
+        }
+
+        #button-backward {
+            grid-area: backward;
+            background-color: #aae8aa;
+        }
+
+        #button-left {
+            grid-area: left;
+            background-color: #aae8aa;
+        }
+
+        #button-right {
+            grid-area: right;
+            background-color: #aae8aa;
+        }
+
         #button-stop {
             grid-area: stop;
             background-color: #e8aaaa;
@@ -101,11 +129,31 @@
             align-self: center;
             justify-self: center;
         }
-        #button-forward::before { content: '▲'; font-size: 28px; }
-        #button-backward::before { content: '▼'; font-size: 28px; }
-        #button-left::before { content: '◄'; font-size: 28px; }
-        #button-right::before { content: '►'; font-size: 28px; }
-        #button-stop::before { content: '■'; font-size: 28px; }
+
+        #button-forward::before {
+            content: '▲';
+            font-size: 28px;
+        }
+
+        #button-backward::before {
+            content: '▼';
+            font-size: 28px;
+        }
+
+        #button-left::before {
+            content: '◄';
+            font-size: 28px;
+        }
+
+        #button-right::before {
+            content: '►';
+            font-size: 28px;
+        }
+
+        #button-stop::before {
+            content: '■';
+            font-size: 28px;
+        }
 
         .info-text {
             font-size: 0.9em;
@@ -117,6 +165,7 @@
             margin-bottom: 20px;
             max-width: 90%;
         }
+
         .controls-section {
             margin-top: 20px;
             display: flex;
@@ -128,11 +177,13 @@
             background-color: #e0e0e0;
             border-radius: 8px;
         }
+
         .controls-section h3 {
             margin-top: 0;
             margin-bottom: 15px;
         }
-        .controls-section > div {
+
+        .controls-section>div {
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -140,23 +191,28 @@
             max-width: 380px;
             margin-bottom: 12px;
         }
+
         .controls-section label {
             margin-right: 10px;
             font-size: 0.95em;
             flex-shrink: 0;
         }
+
         /* NUEVO: Estilo específico para el slider de volumen */
         .controls-section input[type="range"] {
             flex-grow: 1;
             cursor: pointer;
         }
-        .controls-section select, .controls-section input[type="number"] {
+
+        .controls-section select,
+        .controls-section input[type="number"] {
             padding: 8px;
             border-radius: 4px;
             border: 1px solid #ccc;
             flex-grow: 1;
             min-width: 80px;
         }
+
         .controls-section button {
             padding: 10px 15px;
             font-size: 1em;
@@ -167,19 +223,47 @@
             transition: background-color 0.2s;
             min-width: 220px;
         }
-        .button-start-loop { background-color: #4CAF50; }
-        .button-start-loop:hover { background-color: #45a049; }
-        .button-stop-loop { background-color: #f44336; }
-        .button-stop-loop:hover { background-color: #da190b; }
-        #button-play-video { background-color: #4CAF50; }
-        #button-play-video:hover { background-color: #45a049; }
-        #button-skip-video { background-color: #f44336; }
-        #button-skip-video:hover { background-color: #da190b; }
+
+        .button-start-loop {
+            background-color: #4CAF50;
+        }
+
+        .button-start-loop:hover {
+            background-color: #45a049;
+        }
+
+        .button-stop-loop {
+            background-color: #f44336;
+        }
+
+        .button-stop-loop:hover {
+            background-color: #da190b;
+        }
+
+        #button-play-video {
+            background-color: #4CAF50;
+        }
+
+        #button-play-video:hover {
+            background-color: #45a049;
+        }
+
+        #button-skip-video {
+            background-color: #f44336;
+        }
+
+        #button-skip-video:hover {
+            background-color: #da190b;
+        }
+
         #button-trigger-event {
             background-color: #ff9800;
             margin-top: 5px;
         }
-        #button-trigger-event:hover { background-color: #e68a00; }
+
+        #button-trigger-event:hover {
+            background-color: #e68a00;
+        }
 
         /* Estilos para el interruptor (toggle switch) */
         .switch {
@@ -188,11 +272,13 @@
             width: 60px;
             height: 34px;
         }
+
         .switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
+
         .slider {
             position: absolute;
             cursor: pointer;
@@ -204,6 +290,7 @@
             transition: .4s;
             border-radius: 34px;
         }
+
         .slider:before {
             position: absolute;
             content: "";
@@ -215,25 +302,47 @@
             transition: .4s;
             border-radius: 50%;
         }
-        input:checked + .slider {
+
+        input:checked+.slider {
             background-color: #2196F3;
         }
-        input:checked + .slider:before {
+
+        input:checked+.slider:before {
             transform: translateX(26px);
         }
-        
+
         @media (max-width: 400px) {
             .control-button {
-                width: 75px; height: 75px; font-size: 16px;
+                width: 75px;
+                height: 75px;
+                font-size: 16px;
             }
-            #button-stop { width: 60px; height: 60px; }
-            .robot-orientation { width: 100px; }
-            .robot-body { width: 70px; height: 100px; }
-            .robot-body .arrow-up { font-size: 24px; }
-            .controls-section button { min-width: 180px; }
+
+            #button-stop {
+                width: 60px;
+                height: 60px;
+            }
+
+            .robot-orientation {
+                width: 100px;
+            }
+
+            .robot-body {
+                width: 70px;
+                height: 100px;
+            }
+
+            .robot-body .arrow-up {
+                font-size: 24px;
+            }
+
+            .controls-section button {
+                min-width: 180px;
+            }
         }
     </style>
 </head>
+
 <body>
     <div class="main-container">
         <h2>Control del Robot</h2>
@@ -254,7 +363,8 @@
         </div>
 
         <div class="info-text">
-            <p>La flecha ▲ indica el frente del robot. Presione los botones para mover el robot con respecto a su orientación.</p>
+            <p>La flecha ▲ indica el frente del robot. Presione los botones para mover el robot con respecto a su
+                orientación.</p>
         </div>
 
         <div class="controls-section video-controls">
@@ -274,7 +384,8 @@
             <div>
                 <label for="volume-slider">Volumen:</label>
                 <input type="range" id="volume-slider" min="0" max="100" step="1">
-                <span id="volume-percentage" style="margin-left: 15px; font-weight: bold; min-width: 45px; text-align: right;">--%</span>
+                <span id="volume-percentage"
+                    style="margin-left: 15px; font-weight: bold; min-width: 45px; text-align: right;">--%</span>
             </div>
         </div>
         <div class="controls-section special-event-controls">
@@ -286,7 +397,7 @@
                     <span class="slider"></span>
                 </label>
             </div>
-             <button id="button-trigger-event">💥 Activar Evento Manualmente</button>
+            <button id="button-trigger-event">💥 Activar Evento Manualmente</button>
             <div>
                 <label for="min-time">Tiempo Mínimo (seg):</label>
                 <input type="number" id="min-time" value="120" min="10" step="10">
@@ -317,7 +428,7 @@
                 <label for="emotion-select">Seleccionar Video:</label>
                 <select id="emotion-select" name="emotion-select">
                     <option value="neutral">Neutral</option>
-                    <option value="angry" >Enojo</option>
+                    <option value="angry">Enojo</option>
                     <option value="disgust">Disgusto</option>
                     <option value="fear">Miedo</option>
                     <option value="happy">Feliz</option>
@@ -334,8 +445,8 @@
         </div>
 
         <div class="controls-section">
-            <h3>Control de Cámara</h3>
-            <button id="toggle-camera-feed">📹 Alternar Video Aleatorio</button>
+            <h3>Remplazo Camara Por Video</h3>
+            <button id="button-loop-camara">Iniciar</button>
         </div>
 
     </div>
@@ -354,7 +465,7 @@
 
         const playVideoButton = document.getElementById('button-play-video');
         const skipVideoButton = document.getElementById('button-skip-video');
-        
+
         // NUEVO: Selectores de Volumen
         const volumeSlider = document.getElementById('volume-slider');
         const volumePercentage = document.getElementById('volume-percentage');
@@ -369,22 +480,24 @@
 
         const buttonsLoop = {
             button: document.getElementById('button-loop'),
+            button2: document.getElementById('button-loop-camara')
         };
 
         const mainAppUrl = `http://${window.location.hostname}:5000`;
         const movementAppUrl = `http://${window.location.hostname}:5001`;
 
         let buttonsLoopState = false;
+        let buttonsLoopStateCamera = false
 
-        emotionSelect.addEventListener('change', function(event) {
+        emotionSelect.addEventListener('change', function (event) {
             const selectedValue = event.target.value;
             fetch(`${mainAppUrl}/set_predete_emotion?emotion=${selectedValue}`, {
                 method: 'POST'
             })
             console.log(`Predetermined emotion set to: ${selectedValue}`);
-            });
+        });
 
-        
+
         buttonsLoop.button.addEventListener('click', () => {
             buttonsLoopState = !buttonsLoopState;
             if (buttonsLoopState) {
@@ -401,6 +514,21 @@
             }
         });
 
+        buttonsLoop.button2.addEventListener('click', () => {
+            buttonsLoopStateCamera = !buttonsLoopStateCamera;
+            if (buttonsLoopStateCamera) {
+                buttonsLoop.button2.textContent = '🔁 Detener';
+                buttonsLoop.button2.classList.add('button-stop-loop');
+                buttonsLoop.button2.classList.remove('button-start-loop');
+                fetch(`${mainAppUrl}/set_video_loop_camera_state?state=true`, { method: 'POST' });
+            } else {
+                buttonsLoop.button2.textContent = '🔁 Iniciar';
+                buttonsLoop.button2.classList.add('button-start-loop');
+                buttonsLoop.button2.classList.remove('button-stop-loop');
+                fetch(`${mainAppUrl}/set_video_loop_camera_state?state=false`, { method: 'POST' });
+            }
+        });
+
         // --- Funciones de Comunicación ---
 
         function sendMoveCommand(command) {
@@ -409,7 +537,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ command: command })
             })
-            .catch(error => console.error("Error sending move command:", error));
+                .catch(error => console.error("Error sending move command:", error));
         }
 
         function sendStopCommand() {
@@ -418,7 +546,7 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({})
             })
-            .catch(error => console.error("Error stopping:", error));
+                .catch(error => console.error("Error stopping:", error));
         }
 
         // --- NUEVO: Funciones de Volumen ---
@@ -430,7 +558,7 @@
                     volumeSlider.value = data.volume;
                     volumePercentage.textContent = `${data.volume}%`;
                 } else {
-                     volumePercentage.textContent = 'Error';
+                    volumePercentage.textContent = 'Error';
                 }
             } catch (error) {
                 console.error('Error fetching volume:', error);
@@ -439,7 +567,7 @@
         }
 
 
-        async function fetchEmotion(){
+        async function fetchEmotion() {
             try {
                 const response = await fetch(`${mainAppUrl}/get_predete_emotion`);
                 const data = await response.json();
@@ -469,7 +597,24 @@
                 console.error('Error fetching loop state:', error);
             }
         }
-        
+
+        async function fetchLoopState() {
+            try {
+                const response = await fetch(`${mainAppUrl}/get_video_loop_camera_state`);
+                const data = await response.json();
+                if (response.ok) {
+                    buttonsLoopStateCamera = data.looping;
+                    buttonsLoop.button2.textContent = buttonsLoopStateCamera ? '🔁 Detener' : '🔁 Iniciar';
+                    buttonsLoop.button2.classList.toggle('button-start-loop', !buttonsLoopStateCamera);
+                    buttonsLoop.button2.classList.toggle('button-stop-loop', buttonsLoopStateCamera);
+                } else {
+                    console.error('Error fetching loop state:', data);
+                }
+            } catch (error) {
+                console.error('Error fetching loop state:', error);
+            }
+        }
+
         let volumeDebounceTimer;
         function setVolume(volume) {
             volumePercentage.textContent = `${volume}%`;
@@ -500,15 +645,15 @@
                 move_duration: parseInt(moveDurationInput.value, 10),
                 delay_between: parseInt(delayBetweenInput.value, 10)
             };
-            
+
             fetch(`${mainAppUrl}/config_special_event`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)
             })
-            .then(response => response.json())
-            .then(data => console.log("Config sent to main app:", data.message))
-            .catch(error => console.error("Error saving config:", error));
+                .then(response => response.json())
+                .then(data => console.log("Config sent to main app:", data.message))
+                .catch(error => console.error("Error saving config:", error));
         }
 
         async function fetchEventConfig() {
@@ -516,7 +661,7 @@
                 const response = await fetch(`${mainAppUrl}/get_special_event_config`);
                 if (!response.ok) throw new Error("Failed to fetch config from main app");
                 const config = await response.json();
-                
+
                 eventToggle.checked = config.enabled;
                 minTimeInput.value = config.min_time;
                 maxTimeInput.value = config.max_time;
@@ -548,10 +693,10 @@
 
         // Lógica de botones de movimiento
         const moveCommands = {
-            'forward':  'right',     // Botón ARRIBA (forward) -> envía comando 'right' para que vaya adelante.
+            'forward': 'right',     // Botón ARRIBA (forward) -> envía comando 'right' para que vaya adelante.
             'backward': 'left',      // Botón ABAJO (backward) -> envía comando 'left' para que vaya atrás.
-            'left':     'forward',   // Botón IZQUIERDA (left) -> envía comando 'forward' para que vaya a la izquierda.
-            'right':    'backward'   // Botón DERECHA (right) -> envía comando 'backward' para que vaya a la derecha.
+            'left': 'forward',   // Botón IZQUIERDA (left) -> envía comando 'forward' para que vaya a la izquierda.
+            'right': 'backward'   // Botón DERECHA (right) -> envía comando 'backward' para que vaya a la derecha.
         };
         // ***************************************************************
 
@@ -563,10 +708,10 @@
 
             if (button && commandToSend) {
                 const startEvent = () => sendMoveCommand(commandToSend);
-                
+
                 button.addEventListener('mousedown', startEvent);
                 button.addEventListener('touchstart', (e) => { e.preventDefault(); startEvent(); }, { passive: false });
-                
+
                 const stopEvents = ['mouseup', 'mouseleave', 'touchend', 'touchcancel'];
                 stopEvents.forEach(event => button.addEventListener(event, (e) => { e.preventDefault(); sendStopCommand(); }));
             }
@@ -618,21 +763,6 @@
         if (playVideoButton) playVideoButton.addEventListener('click', playSelectedVideo);
         if (skipVideoButton) skipVideoButton.addEventListener('click', skipCurrentVideo);
 
-        // NUEVO: Función para alternar la cámara
-        async function toggleCameraFeed() {
-            try {
-                const response = await fetch(`${mainAppUrl}/toggle_camera`, { method: 'POST' });
-                const data = await response.json();
-                if (response.ok && data.success) {
-                    alert('Éxito: ' + data.message);
-                } else {
-                    alert('Error: ' + (data.message || 'Error desconocido'));
-                }
-            } catch (error) {
-                console.error('Error toggling camera:', error);
-                alert('Error de comunicación al alternar la cámara.');
-            }
-        }
 
         // --- Inicialización ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -640,11 +770,11 @@
             fetchEventConfig();
             fetchVolume(); // NUEVO: Cargar el volumen inicial
             fetchEmotion();
-            fetchLoopState(); 
+            fetchLoopState();
 
             const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
             configInputs.forEach(input => input.addEventListener('change', sendEventConfig));
-            
+
             // NUEVO: Listener para el slider de volumen
             volumeSlider.addEventListener('input', (e) => setVolume(e.target.value));
 
@@ -660,4 +790,5 @@
         });
     </script>
 </body>
+
 </html>

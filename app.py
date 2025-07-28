@@ -28,7 +28,7 @@ detected_emotion = "neutral"
 predete_emotion = "neutral"
 
 looping_videos = False
-camera_disabled = False  # NUEVO: Estado de la cámara
+looping_videos_camera = False
 
 detected_snapshot = None
 forced_video_to_play = None
@@ -326,46 +326,22 @@ def set_video_loop_state():
 def get_video_loop_state():
     return jsonify({"looping": looping_videos})
 
-# NUEVO: Ruta para alternar cámara con video aleatorio
-@app.route('/toggle_camera', methods=['POST'])
-def toggle_camera():
-    global camera_disabled
-    
-    video_upload_path = os.path.join(app.static_folder, "video_upload")
-    
-    # Verificar si existe la carpeta y tiene videos
-    if not os.path.exists(video_upload_path):
-        return jsonify({'success': False, 'message': 'No se encontró la carpeta de videos de cámara.'}), 404
-    
-    videos = [f for f in os.listdir(video_upload_path) if f.lower().endswith('.mp4')]
-    if not videos:
-        return jsonify({'success': False, 'message': 'No hay videos disponibles para mostrar en lugar de la cámara.'}), 404
-    
-    if camera_disabled:
-        # Reactivar cámara
-        camera_disabled = False
-        return jsonify({'success': True, 'camera_enabled': True, 'message': 'Cámara reactivada. Volviendo al feed de video en vivo.'})
-    else:
-        # Desactivar cámara y devolver video aleatorio
-        camera_disabled = True
-        chosen_video = random.choice(videos)
-        video_url = f"/static/video_upload/{chosen_video}"
-        return jsonify({'success': True, 'camera_enabled': False, 'video_url': video_url, 'message': f'Cámara desactivada. Reproduciendo video aleatorio: {chosen_video}'})
 
-# NUEVO: Ruta para controlar la visualización de la cámara desde el frontend
-@app.route('/camera_control', methods=['POST'])
-def camera_control():
-    data = request.json
-    action = data.get('action')
-    
-    if action == 'enable_camera':
-        return jsonify({'success': True, 'action': 'enable_camera'})
-    elif action == 'show_video':
-        video_url = data.get('video_url')
-        return jsonify({'success': True, 'action': 'show_video', 'video_url': video_url})
-    else:
-        return jsonify({'success': False, 'message': 'Acción no válida'}), 400
-    
+@app.route('/set_video_loop_camera_state', methods=['POST'])
+def set_video_loop_state():
+    global looping_videos_camera
+    state_param = request.args.get('state')
+    # Convertir string a boolean correctamente
+    looping_videos_camera = state_param == 'true' if state_param is not None else False
+    return jsonify({"looping": looping_videos_camera})
+
+
+@app.route('/get_video_loop_camera_state', methods=['GET'])
+def get_video_loop_state():
+    return jsonify({"looping": looping_videos_camera})
+
+
+
 
 if __name__ == '__main__':
     threading.Thread(target=detection_loop, daemon=True).start()
