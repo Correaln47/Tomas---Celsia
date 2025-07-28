@@ -598,7 +598,7 @@
             }
         }
 
-        async function fetchLoopState() {
+        async function fetchLoopStateCamera() {
             try {
                 const response = await fetch(`${mainAppUrl}/get_video_loop_camera_state`);
                 const data = await response.json();
@@ -768,9 +768,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchVideoList();
             fetchEventConfig();
-            fetchVolume(); // NUEVO: Cargar el volumen inicial
+            fetchVolume();
             fetchEmotion();
             fetchLoopState();
+            fetchLoopStateCamera();
 
             const configInputs = [eventToggle, minTimeInput, maxTimeInput, initialDelayInput, moveDurationInput, delayBetweenInput];
             configInputs.forEach(input => input.addEventListener('change', sendEventConfig));

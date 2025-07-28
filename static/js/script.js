@@ -279,7 +279,6 @@ document.addEventListener("DOMContentLoaded", function () {
         if (isShowingStaticEmotion) {
             return;
         }
-
         const amplitude = isAudioPlaying && isAnalyserReady ? getAverageAmplitude() : 0;
 
         if (videoContainer.style.display !== "flex" && randomEventVideo.style.display !== 'block') {
@@ -370,11 +369,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
 
                 if (!currentForcedVideoProcessed) {
-                    if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
+                    if(cameraReplacementDesactiveFirst === false && cameraReplacementActiveFirst === true){
+                                    if (data.detected && !isAudioPlaying && interactionVideo.paused && randomEventVideo.paused) {
                         handleEmotionDetection(data.emotion);
                     } else if (!data.detected && snapshotContainer.style.display !== 'none') {
                         videoFeed.style.display = "block";
                         snapshotContainer.style.display = "none";
+                    }
                     }
                 }
             }).catch(err => console.error("Polling error:", err));
