@@ -254,6 +254,17 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('Mostrando video de reemplazo:', videoUrl);
     }
 
+    cameraReplacementVideo.onend(()=>{
+            fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
+            .then(data => {
+                if (data.video_url) {
+                    cameraReplacementVideo.src = data.video_url
+                    cameraReplacementVideo.play()
+                }
+            })
+            .catch(restartInteraction);
+        })
+
     // Polling para comandos de control de cámara
     // function checkCameraControl() {
     //     fetch('/camera_control', {
