@@ -244,7 +244,7 @@ def get_random_video_route():
 
 
 @app.route('/get_random_video_camera')
-def get_random_video_route():
+def get_random_video_route_camera():
     path = os.path.join(app.static_folder, "video_upload")
     files = [f for f in os.listdir(path) if f.lower().endswith('.mp4')]
     if not files: return jsonify({'error': 'No video files'}), 404
