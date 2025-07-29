@@ -324,30 +324,31 @@ def set_predete_emotion():
 #------------------------- Videos automáticos -----------------
 @app.route('/set_video_loop_state', methods=['POST'])
 def set_video_loop_state():
-    global looping_videos
+    global looping_videos, url_camera
     state_param = request.args.get('state')
+    url_param = request.args.get('url')
+    url_camera = "/static/video/" + url_param
+
     looping_videos = state_param == 'true' if state_param is not None else False
-    return jsonify({"looping": looping_videos})
+    return jsonify({"looping": looping_videos, 'url' : url_camera})
 
 
 @app.route('/get_video_loop_state', methods=['GET'])
 def get_video_loop_state():
-    return jsonify({"looping": looping_videos})
+    return jsonify({"looping": looping_videos, "url": url_camera})
 
 
 @app.route('/set_video_loop_camera_state', methods=['POST'])
 def set_video_loop_camera_state():
-    global looping_videos_camera, url_camera
+    global looping_videos_camera
     state_param = request.args.get('state')
-    url_param = request.args.get('url')
-    url_camera = "/static/video/" + url_param
     looping_videos_camera = state_param == 'true' if state_param is not None else False
-    return jsonify({"looping": looping_videos_camera, 'url' : url_camera})
+    return jsonify({"looping": looping_videos_camera})
 
 
 @app.route('/get_video_loop_camera_state', methods=['GET'])
 def get_video_loop_camera_state():
-    return jsonify({"looping": looping_videos_camera, "url": url_camera})
+    return jsonify({"looping": looping_videos_camera})
 
 
 
