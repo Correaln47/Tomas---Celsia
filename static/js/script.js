@@ -236,9 +236,11 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('Cámara habilitada');
     }
 
-    async function showReplacementVideo() {
+    async function showReplacementVideo(audio = true) {
         cameraReplacementActive = true;
         videoFeed.style.display = 'none';
+
+
 
         videoUrl = await fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
             .then(data => {
@@ -247,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             })
             .catch(restartInteraction);
-
+        cameraReplacementVideo.muted = audio ? false : true
         cameraReplacementVideo.style.display = 'block';
         cameraReplacementVideo.src = videoUrl;
         cameraReplacementVideo.play();
@@ -401,11 +403,17 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(res => res.ok ? res.json() : Promise.reject())
             .then(data => {
                 if (data.audio_url) {
-                    playAudio(data.audio_url).finally(triggerVideo);
+                    showReplacementVideo(false)
+                    playAudio(data.audio_url).finally(()=>{
+                        enableCamera()
+                        triggerVideo()
+
+                    });
                 } else {
                     triggerVideo();
                 }
             }).catch(triggerVideo);
+
     }
 
     function triggerVideo() {
@@ -434,12 +442,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 randomEventVideo.style.display = 'none';
                 faceCanvas.style.display = 'block';
                 currentForcedVideoProcessed = null;
+                document.getElementById("power-button-comment").style.display = "none";
+
                 // if (looping) {
                 //     triggerVideo();
                 // }
-            setTimeout(()=>{
-                document.getElementById("power-button-comment").style.display = "none";
-            },3000)
+            // setTimeout(()=>{
+            //     document.getElementById("power-button-comment").style.display = "none";
+            // },3000)
             };
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;
