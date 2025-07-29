@@ -264,35 +264,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
     }
-
-
-    // Polling para comandos de control de cámara
-    // function checkCameraControl() {
-    //     fetch('/camera_control', {
-    //         method: 'POST',
-    //         headers: { 'Content-Type': 'application/json' },
-    //         body: JSON.stringify({ action: 'check' })
-    //     })
-    //     .then(res => {
-    //         if (res.ok) {
-    //             return res.json();
-    //         }
-    //         return null;
-    //     })
-    //     .then(data => {
-    //         if (data && data.success) {
-    //             if (data.action === 'enable_camera' && cameraReplacementActive) {
-    //                 enableCamera();
-    //             } else if (data.action === 'show_video' && !cameraReplacementActive) {
-    //                 showReplacementVideo(data.video_url);
-    //             }
-    //         }
-    //     })
-    //     .catch(err => {
-    //         // Silenciar errores de polling
-    //     });
-    // }
-
     // --- Bucle de Animación ---
     function animateFace() {
         requestAnimationFrame(animateFace);
@@ -455,6 +426,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log(`Playing ${isSpecial ? 'special' : 'normal'} video: ${videoPath}`);
 
         if (isSpecial) {
+            document.getElementById("power-button-comment").style.display = "block";
             faceCanvas.style.display = 'none';
             randomEventVideo.style.display = 'block';
             randomEventVideo.currentTime = 0;
@@ -465,6 +437,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 // if (looping) {
                 //     triggerVideo();
                 // }
+            setTimeout(()=>{
+                document.getElementById("power-button-comment").style.display = "none";
+            },3000)
             };
             randomEventVideo.onended = onEnd;
             randomEventVideo.onerror = onEnd;
