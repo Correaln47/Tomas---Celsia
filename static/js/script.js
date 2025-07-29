@@ -337,11 +337,11 @@ document.addEventListener("DOMContentLoaded", function () {
                         looping = true
                         firstLoop = false
 
-                        // if (data.url !== 'random' && data.url){
-                            // playSpecificVideo(data.url)
+                        // if (data.url !== 'random' && data.url !== null && data.url !== NaN){
+                            playSpecificVideo(data.url)
                         // }
                         // else{
-                            triggerVideo()
+                            // triggerVideo()
                         // }
                     }
                     // Asegurar que looping se mantenga true mientras el servidor lo indique
