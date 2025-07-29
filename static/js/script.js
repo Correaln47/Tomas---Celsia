@@ -349,10 +349,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     looping = true
                 }
                 else {
-                    // Cuando el servidor indica que no hay looping, detenerlo inmediatamente
-                    if (looping) {
-                        console.log('Looping disabled, stopping after current video')
-                    }
+
                     firstLoop = true
                     looping = false
                 }

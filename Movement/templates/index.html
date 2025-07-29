@@ -510,12 +510,12 @@
                 buttonsLoop.button.textContent = '🔁 Detener';
                 buttonsLoop.button.classList.add('button-stop-loop');
                 buttonsLoop.button.classList.remove('button-start-loop');
-                fetch(`${mainAppUrl}/set_video_loop_state?state=true&url=${videoSelect2.value}`, { method: 'POST' });
+                fetch(`${mainAppUrl}/set_video_loop_state?state=true&url=${videoSelect2.value ? videoSelect2.value : "random" }`, { method: 'POST' });
             } else {
                 buttonsLoop.button.textContent = '🔁 Iniciar';
                 buttonsLoop.button.classList.add('button-start-loop');
                 buttonsLoop.button.classList.remove('button-stop-loop');
-                fetch(`${mainAppUrl}/set_video_loop_state?state=false&url=${videoSelect2.value}`, { method: 'POST' });
+                fetch(`${mainAppUrl}/set_video_loop_state?state=false&url=${videoSelect2.value? videoSelect2.value : "random" }`, { method: 'POST' });
                 fetch(`${mainAppUrl}/restart`);
             }
         });
