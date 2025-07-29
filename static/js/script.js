@@ -236,19 +236,19 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('Cámara habilitada');
     }
 
-    async function showReplacementVideo(audio = true, url) {
+    async function showReplacementVideo(audio = true) {
         cameraReplacementActive = true;
         videoFeed.style.display = 'none';
 
 
 
-        videoUrl = url === "random" ? await fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
+        videoUrl = await fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
             .then(data => {
                 if (data.video_url) {
                     return data.video_url
                 }
             })
-            .catch(restartInteraction) : url
+            .catch(restartInteraction)
         cameraReplacementVideo.muted = audio ? false : true
         cameraReplacementVideo.style.display = 'block';
         cameraReplacementVideo.src = videoUrl;
@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (data.looping) {
                     if (cameraReplacementActiveFirst) {
                     
-                        showReplacementVideo(true, data.url)
+                        showReplacementVideo(true)
                         cameraReplacementDesactiveFirst = true
                         cameraReplacementActiveFirst = false
                     }
@@ -335,8 +335,15 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (data.looping) {
                     if (firstLoop) {
                         looping = true
-                        triggerVideo()
                         firstLoop = false
+
+                        if (data.url != 'random'){
+                            playSpecificVideo(data.url)
+                        }
+                        else{
+                            triggerVideo()
+
+                        }
                     }
                     // Asegurar que looping se mantenga true mientras el servidor lo indique
                     looping = true
