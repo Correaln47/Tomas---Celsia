@@ -236,19 +236,19 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log('Cámara habilitada');
     }
 
-    async function showReplacementVideo(audio = true) {
+    async function showReplacementVideo(audio = true, url) {
         cameraReplacementActive = true;
         videoFeed.style.display = 'none';
 
 
 
-        videoUrl = await fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
+        videoUrl = url === "random" ? await fetch('/get_random_video_camera').then(res => res.ok ? res.json() : Promise.reject())
             .then(data => {
                 if (data.video_url) {
                     return data.video_url
                 }
             })
-            .catch(restartInteraction);
+            .catch(restartInteraction) : url
         cameraReplacementVideo.muted = audio ? false : true
         cameraReplacementVideo.style.display = 'block';
         cameraReplacementVideo.src = videoUrl;
@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (data.looping) {
                     if (cameraReplacementActiveFirst) {
                     
-                        showReplacementVideo()
+                        showReplacementVideo(true, data.url)
                         cameraReplacementDesactiveFirst = true
                         cameraReplacementActiveFirst = false
                     }
@@ -405,9 +405,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (data.audio_url) {
                     showReplacementVideo(false)
                     playAudio(data.audio_url).finally(()=>{
-                        enableCamera()
                         triggerVideo()
-
                     });
                 } else {
                     triggerVideo();

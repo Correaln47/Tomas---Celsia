@@ -29,6 +29,7 @@ predete_emotion = "neutral"
 
 looping_videos = False
 looping_videos_camera = False
+url_camera = "random"
 
 detected_snapshot = None
 forced_video_to_play = None
@@ -336,15 +337,17 @@ def get_video_loop_state():
 
 @app.route('/set_video_loop_camera_state', methods=['POST'])
 def set_video_loop_camera_state():
-    global looping_videos_camera
+    global looping_videos_camera, url_camera
     state_param = request.args.get('state')
+    url_param = request.args.get('url')
+    url_camera = "/static/video/" + url_param
     looping_videos_camera = state_param == 'true' if state_param is not None else False
-    return jsonify({"looping": looping_videos_camera})
+    return jsonify({"looping": looping_videos_camera, 'url' : url_camera})
 
 
 @app.route('/get_video_loop_camera_state', methods=['GET'])
 def get_video_loop_camera_state():
-    return jsonify({"looping": looping_videos_camera})
+    return jsonify({"looping": looping_videos_camera, "url": url_camera})
 
 
 

@@ -441,12 +441,16 @@
         <div class="controls-section video-controls">
             <h3>Reproducir Videos Automaticos</h3>
             <button id="button-loop">🔁 Iniciar</button>
-            <!-- <button id="button-stop-loop">🛑 Detener</button> -->
-        </div>
+            <label for="video-select2">Seleccionar Video:</label>
+                <select id="video-select2" name="video-select2">
+                    <option value="random">Aleatorio</option>
+                </select>        
+            </div>
 
         <div class="controls-section">
             <h3>Remplazo Camara Por Video</h3>
             <button id="button-loop-camara">Iniciar</button>
+
         </div>
 
     </div>
@@ -461,6 +465,8 @@
             stop: document.getElementById('button-stop')
         };
         const videoSelect = document.getElementById('video-select');
+        const videoSelect2 = document.getElementById('video-select2');
+
         const emotionSelect = document.getElementById('emotion-select');
 
         const playVideoButton = document.getElementById('button-play-video');
@@ -504,7 +510,7 @@
                 buttonsLoop.button.textContent = '🔁 Detener';
                 buttonsLoop.button.classList.add('button-stop-loop');
                 buttonsLoop.button.classList.remove('button-start-loop');
-                fetch(`${mainAppUrl}/set_video_loop_state?state=true`, { method: 'POST' });
+                fetch(`${mainAppUrl}/set_video_loop_state?state=true&url=${videoSelect.value}`, { method: 'POST' });
             } else {
                 buttonsLoop.button.textContent = '🔁 Iniciar';
                 buttonsLoop.button.classList.add('button-start-loop');
@@ -734,10 +740,13 @@
                         option.value = videoFile;
                         option.textContent = videoFile.split('.')[0].replace(/_/g, ' ');
                         videoSelect.appendChild(option);
+                        videoSelect2.appendChild(option);
                     });
                 }
             } catch (error) {
                 videoSelect.innerHTML = '<option value="">Error al cargar</option>';
+                videoSelect2.innerHTML = '<option value="">Error al cargar</option>';
+
             }
         }
         async function playSelectedVideo() {
